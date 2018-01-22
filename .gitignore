@@ -6,3 +6,7 @@ src/dist
 src/.project
 src/.pydevproject
 src/.settings/
+build
+dist
+*.spec
+bitbay/BitMData
