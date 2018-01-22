@@ -64,7 +64,7 @@ class outgoingSynSender(threading.Thread):
                 shared.alreadyAttemptedConnectionsListLock.acquire()
             shared.alreadyAttemptedConnectionsList[peer] = 0
             shared.alreadyAttemptedConnectionsListLock.release()
-            if peer.host.find(':') == -1:
+            if isinstance(peer.host, basestring) and peer.host.find(':') == -1:
                 address_family = socket.AF_INET
             else:
                 address_family = socket.AF_INET6

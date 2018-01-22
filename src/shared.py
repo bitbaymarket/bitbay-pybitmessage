@@ -48,6 +48,7 @@ printLock = threading.Lock()
 objectProcessorQueueSizeLock = threading.Lock()
 objectProcessorQueueSize = 0 # in Bytes. We maintain this to prevent nodes from flooing us with objects which take up too much memory. If this gets too big we'll sleep before asking for further objects.
 appdata = '' #holds the location of the application data storage directory
+workingdir = ''
 statusIconColor = 'red'
 connectedHostsList = {} #List of hosts to which we are connected. Used to guarantee that the outgoingSynSender threads won't connect to the same remote node twice.
 shutdown = 0 #Set to 1 by the doCleanShutdown function. Used to tell the proof of work worker threads to exit.
@@ -174,9 +175,78 @@ def assembleErrorMessage(fatal=0, banTime=0, inventoryVector='', errorText=''):
     payload += errorText
     return CreatePacket('error', payload)
 
+#ADDED FUNCTIONALITY FOR DATA DIRECTORY
+def getPythonFileLocation():
+    """  returns the location of where the python file is located BitMHalo.py"""
+    try: #If they send the data dir manually
+        return os.path.dirname(sys.argv[1].replace("path=",""))
+    except:
+        pass
+    if os.path.dirname(sys.argv[0]) !="":
+        return os.path.dirname(sys.argv[0])
+    if os.path.dirname(__file__) != "":
+        return os.path.dirname(__file__)
+    elif os.path.dirname(os.path.abspath(__file__)) != "":
+        return os.path.dirname(os.path.abspath(__file__))
+    elif os.path.dirname(os.getcwd()) != "":
+        return os.path.dirname(os.getcwd())
+    else:
+        from inspect import getsourcefile
+        return os.path.dirname(os.path.abspath(getsourcefile(lambda _:None)))
+
 def lookupAppdataFolder():
-    APPNAME = "PyBitmessage"
-    if "BITMESSAGE_HOME" in environ:
+    APPNAME = "BitMData"
+    try:
+        sysdir=""
+        argdir=""
+        for arg in sys.argv:
+            if "path=" in arg:
+                sysdir=arg
+            if "bitbay" in arg.lower() or "bithalo" in arg.lower() or "blackhalo" in arg.lower():
+                argdir=arg
+    except:
+        pass
+    workingdir=""
+    if workingdir!="":
+        dataFolder=workingdir+APPNAME
+        if os.name == 'nt':
+            dataFolder+="\\"
+        else:
+            dataFolder+="/"
+        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
+        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
+        return dataFolder
+    elif sysdir!="":
+        if os.name == 'nt':
+            dataFolder=sysdir+"\\"+APPNAME+"\\"
+        else:
+        	dataFolder=sysdir+"/"+APPNAME+"/"
+        dataFolder=dataFolder.replace("path=","")
+        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
+        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
+        return dataFolder
+    elif argdir!="":
+        dataFolder=argdir
+        dataFolder=dataFolder.replace("python ","")
+        dataFolder=dataFolder.replace("python2.7 ","")
+        dataFolder=dataFolder.replace("BitMHalo.py","")
+        dataFolder=dataFolder.replace("BitMHalo.exe","")
+        dataFolder=dataFolder.replace("BitMHalo","")
+        dataFolder=dataFolder.replace("bitmessagemain.exe","")
+        dataFolder=dataFolder.replace("bitmessagemain.py","")
+        dataFolder+=APPNAME
+        if os.name != "nt":
+            if dataFolder=="":
+                dataFolder+="./"
+            dataFolder=dataFolder.replace("//","/")
+        if os.name == 'nt':
+            dataFolder+="\\"
+        else:
+            dataFolder+="/"
+        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
+        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
+        return dataFolder   
+    elif "BITMESSAGE_HOME" in environ:
         dataFolder = environ["BITMESSAGE_HOME"]
         if dataFolder[-1] not in [os.path.sep, os.path.altsep]:
             dataFolder += os.path.sep

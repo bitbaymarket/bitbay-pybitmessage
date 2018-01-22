@@ -9,6 +9,7 @@ import highlevelcrypto
 from addresses import *
 from pyelliptic import arithmetic
 import tr
+import traceback
 
 class addressGenerator(threading.Thread):
 
@@ -195,7 +196,11 @@ class addressGenerator(threading.Thread):
                             break
 
                     print 'ripe.digest', ripe.digest().encode('hex')
-                    print 'Address generator calculated', numberOfAddressesWeHadToMakeBeforeWeFoundOneWithTheCorrectRipePrefix, 'addresses at', numberOfAddressesWeHadToMakeBeforeWeFoundOneWithTheCorrectRipePrefix / (time.time() - startTime), 'keys per second.'
+                    try:
+                        print 'Address generator calculated', numberOfAddressesWeHadToMakeBeforeWeFoundOneWithTheCorrectRipePrefix, 'addresses at', numberOfAddressesWeHadToMakeBeforeWeFoundOneWithTheCorrectRipePrefix / (time.time() - startTime), 'keys per second.'                
+                    except:#Divide by zero can happen for some odd reason. However ignoring it seems to work
+                        traceback.print_exc()
+
                     address = encodeAddress(addressVersionNumber, streamNumber, ripe.digest())
 
                     saveAddressToDisk = True

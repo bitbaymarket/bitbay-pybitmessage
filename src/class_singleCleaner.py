@@ -10,8 +10,8 @@ from helper_sql import *
 from debug import logger
 
 """
-The singleCleaner class is a timer-driven thread that cleans data structures 
-to free memory, resends messages when a remote node doesn't respond, and 
+The singleCleaner class is a timer-driven thread that cleans data structures
+to free memory, resends messages when a remote node doesn't respond, and
 sends pong messages to keep connections alive if the network isn't busy.
 It cleans these data structures in memory:
 inventory (moves data to the on-disk sql database)
@@ -58,7 +58,7 @@ class singleCleaner(threading.Thread):
                             tag)
                         del shared.inventory[hash]
             shared.UISignalQueue.put(('updateStatusBar', ''))
-            
+
             shared.broadcastToSendDataQueues((
                 0, 'pong', 'no data')) # commands the sendData threads to send out a pong message if they haven't sent anything else in the last five minutes. The socket timeout-time is 10 minutes.
             # If we are running as a daemon then we are going to fill up the UI
@@ -88,11 +88,13 @@ class singleCleaner(threading.Thread):
                         break
                     toaddress, toripe, fromaddress, subject, message, ackdata, lastactiontime, status, pubkeyretrynumber, msgretrynumber = row
                     if status == 'awaitingpubkey':
-                        if (int(time.time()) - lastactiontime) > (shared.maximumAgeOfAnObjectThatIAmWillingToAccept * (2 ** (pubkeyretrynumber))):
-                            resendPubkey(pubkeyretrynumber,toripe)
+                        if (int(time.time()) - lastactiontime) > (shared.maximumAgeOfAnObjectThatIAmWillingToAccept + 10800):#* (2 ** (pubkeyretrynumber))#Instead of risking message loss, we wait 3 hours after expiry and send again
+                            if pubkeyretrynumber < 60:#We will resubmit for up to 150 days in this customized Halo client
+                                resendPubkey(pubkeyretrynumber,toripe)
                     else: # status == msgsent
-                        if (int(time.time()) - lastactiontime) > (shared.maximumAgeOfAnObjectThatIAmWillingToAccept * (2 ** (msgretrynumber))):
-                            resendMsg(msgretrynumber,ackdata)
+                        if (int(time.time()) - lastactiontime) > (shared.maximumAgeOfAnObjectThatIAmWillingToAccept + 10800):#* (2 ** (msgretrynumber))#2.5 days and three hours until resubmit
+                            if msgretrynumber < 60:#After 150 days the message will not be submitted again
+                                resendMsg(msgretrynumber,ackdata)
 
                 # Let's also clear and reload shared.inventorySets to keep it from
                 # taking up an unnecessary amount of memory.

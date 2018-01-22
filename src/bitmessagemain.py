@@ -159,10 +159,11 @@ if shared.useVeryEasyProofOfWorkForTesting:
         shared.networkDefaultPayloadLengthExtraBytes / 100)
 
 class Main:
-    def start(self, daemon=False):
+    def start(self, daemon=False, workingdir=""):
         _fixWinsock()
 
         shared.daemon = daemon
+        shared.workingdir = workingdir
         # is the application already running?  If yes then exit.
         thisapp = singleton.singleinstance()
 
