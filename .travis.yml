@@ -1,0 +1,103 @@
+language: cpp
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: ARCH="linux64" DEPLOY_FILE=bitmhalo_linux64.tgz
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: ARCH="linux32" DEPLOY_FILE=bitmhalo_linux32.tgz
+    - os: osx
+      osx_image: xcode7.2
+      compiler: clang
+      env: ARCH="mac" DEPLOY_FILE=bitmhalo_mac.zip
+
+install:
+- export REPOL=https://github.com/bitbaymarket/bitbay-prebuilt-libs1
+- export BASE2=$REPOL/releases/download/base2
+- >
+  if [[ $ARCH == "linux32" ]]; then
+    sudo apt-get install -y python:i386                         &&
+    sudo apt-get install -y python-pip                          &&
+    sudo apt-get install -y pyqt4-dev-tools:i386                &&
+    python --version                                            &&
+    which python                                                &&
+    which pip                                                   &&
+    sudo pip install pyinstaller                                &&
+    sudo pip install pyzmail                                    &&
+    sudo pip install stopit                                     &&
+    sudo pip install password                                   &&
+    export                                                      ;
+  fi &&
+  if [[ $ARCH == "linux64" ]]; then
+    sudo apt-get install -y pyqt4-dev-tools                     &&
+    python --version                                            &&
+    sudo pip install pyinstaller                                &&
+    sudo pip install pyzmail                                    &&
+    sudo pip install stopit                                     &&
+    sudo pip install password                                   &&
+    export                                                      ;
+  fi &&
+  if [[ $ARCH == "mac" ]]; then
+    export PATH="/usr/local/opt/python/libexec/bin:$PATH"       &&
+    brew tap cartr/qt4                                          &&
+    brew tap-pin cartr/qt4                                      &&
+    brew install qt                                             &&
+    brew install sip pyqt@4                                     &&
+    python --version                                            &&
+    pip install pyinstaller                                     &&
+    pip install pyzmail                                         &&
+    pip install stopit                                          &&
+    pip install password                                        &&
+    export                                                       ;
+  fi
+
+before_script:
+- export REPOL=https://github.com/bitbaymarket/bitbay-prebuilt-libs1
+- export BASE2=$REPOL/releases/download/base2
+
+script:
+- cd "$TRAVIS_BUILD_DIR"
+- ls
+- pyinstaller bitbay/BitMHalo.py -F -p src
+- ls dist
+- file dist/BitMHalo
+- >
+  if [[ $ARCH == "linux32" ]]; then
+    ldd dist/BitMHalo                           &&
+    mv dist/BitMHalo .                          &&
+    tar -zcf $DEPLOY_FILE BitMHalo              ;
+  fi &&
+  if [[ $ARCH == "linux64" ]]; then
+    ldd dist/BitMHalo                           &&
+    mv dist/BitMHalo .                          &&
+    tar -zcf $DEPLOY_FILE BitMHalo              ;
+  fi &&
+  if [[ $ARCH == "mac" ]]; then
+    otool -L dist/BitMHalo                      &&
+    mv dist/BitMHalo .                          &&
+    zip -r $DEPLOY_FILE BitMHalo                ;
+  fi
+
+- file $DEPLOY_FILE
+
+deploy:
+  - provider: releases
+    api_key:
+      secure: AHuZPRysIoRuF2MBKxwOHQ6RrCOHA1vTh+hiqWznHdvf1/Db0ITtk/E78JUCgKmrV7d9mDUN1SV1cBogYycu4ecxQZvHOAyNoFi4FFkthndGzrPQMjzmyZCH4DS0jZT9suq3L0dr+N9/U1K1DxZvkFPulsJS1zIHuAyGIhaBvOnJ0o1K4bLltWLaPnOsc+bIFH7lX33Vu1aHmlOjt2BAXYVNdeSRQzIh0ffCYw0DM+NjIq7mUFkMhUoq5zASENgtypN9i/+edCi9IMk/zBPit3vry/9u6L0EUD8GaSDXNsk072uFxqL94juO+kSdJqiHCv1UdQYkPADJXyo8VaMlmovrt5lKa0CL7s0QzH+qw8VDl7ezgcoSFxiyztkVrX+l97arsvtkom5Laa7mrScQttLaDyki2jLiC6tFySHbhW0W7cTnvXlTM3PkJvuXszrxHn5Ifhvt3jLphQ+8iafwfC9M3uqEoCP/rXkXJtLzQVpwPUSQ/S1vuqlZKci4o2YJ7ftemuZ/1Kh04J+cd/RFRf3vOVgr1ujPsBYr95tUVrwBni6LTu/LcXxoUDq2W08XYwHzRqrdsILRILx8Gs/siO8OMdoB/II0qEq0vyAsuVHbeOH0OYtYbbNUnyAfgDjSzFd/VZHN/ZevDicaS3G4D/gOXyNhS9B1hG+OFTivzQE=
+    file: $TRAVIS_BUILD_DIR/$DEPLOY_FILE
+    skip_cleanup: true
+    on:
+      tags: true
+      repo: bitbaymarket/bitbay-pybitmessage
+
+  - provider: releases
+    api_key:
+      secure: dD/la2YFKswuu+B/+v0jnMnOD9zkwyncIQPB5gQE4hEbYRs/C2Ic0AFhZLEGq5xqLriDofqShaGk2rw8JWhSeT8sBcv5ayucrXCbQe/3+MwlKTtfnu/gHVqj8YDSTZriZ0NNeEFyXHE8LUkWdHnsjFU8Q/bkmhe1m+DMUb05Bcj8Yl12xYAuaqVbinGbw5y9U2DLx2n4AZ9xQ5Ry1I8nqgZAEKxflRPGNL4T2bMfQdVoBiRuuq5hxT0M/GJcxsLXqlBywQw57y2EzROLcKMwBuWaO32/tAXbZplqJjiDctqVEjTnnvkbtDsAqb9Er8XDe7TOXjO+dKs8sqUljzT8TnrgHXiL0yi2vZUxzvWZa4xfttQPEJ/tXxm9GXdv2wBxOmWUJt42q0TuZkOzNYo0OMNVvHwxuQOgklDM5t8DCeJucyld12F27DYeoLBSCWKP0zEhu/CouPLk+d5aBh0Its1RZT4YzyXSoc8C+1tphZtv4JYhq8Gs5ZryMlJbGItNlx86+FjZML3GDbZ5JXxuV+NCdsT31q8bFHjQ/UoJhh6yCBebKFD6WyMKGprBikFQG8wTzoPsszVvnFPLQupjdg+ePQm8Lw+x1LGX6gUcx0TavhiyyajQKnEV42g15TYm+KVmr6oG9csdIWOZvKj7dCNzg8NXWe+eg2xYl2R5ABw=
+    file: $TRAVIS_BUILD_DIR/$DEPLOY_FILE
+    skip_cleanup: true
+    on:
+      tags: true
+      repo: yshurik/bitbay-pybitmessage
