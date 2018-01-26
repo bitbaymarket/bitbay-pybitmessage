@@ -19,9 +19,11 @@ install:
 - export BASE2=$REPOL/releases/download/base2
 - >
   if [[ $ARCH == "linux32" ]]; then
+    sudo apt-get update                                         &&
     sudo apt-get install -y python:i386                         &&
     sudo apt-get install -y python-pip                          &&
     sudo apt-get install -y pyqt4-dev-tools:i386                &&
+    sudo apt-get install -y python-crypto:i386                  &&
     python --version                                            &&
     which python                                                &&
     which pip                                                   &&
@@ -38,6 +40,7 @@ install:
     sudo pip install pyzmail                                    &&
     sudo pip install stopit                                     &&
     sudo pip install password                                   &&
+    sudo pip install pycrypto                                   &&
     export                                                      ;
   fi &&
   if [[ $ARCH == "mac" ]]; then
@@ -51,6 +54,7 @@ install:
     pip install pyzmail                                         &&
     pip install stopit                                          &&
     pip install password                                        &&
+    sudo pip install pycrypto                                   &&
     export                                                       ;
   fi
 
