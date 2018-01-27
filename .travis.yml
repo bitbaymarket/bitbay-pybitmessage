@@ -10,7 +10,7 @@ matrix:
       sudo: required
       env: ARCH="linux32" DEPLOY_FILE=bitmhalo_linux32.tgz
     - os: osx
-      osx_image: xcode7.2
+      osx_image: xcode7.3
       compiler: clang
       env: ARCH="mac" DEPLOY_FILE=bitmhalo_mac.zip
 
@@ -45,16 +45,17 @@ install:
   fi &&
   if [[ $ARCH == "mac" ]]; then
     export PATH="/usr/local/opt/python/libexec/bin:$PATH"       &&
+    (brew doctor || echo skip)                                  &&
+    (brew install ruby || echo skip)                            &&
     brew tap cartr/qt4                                          &&
     brew tap-pin cartr/qt4                                      &&
-    brew install qt                                             &&
     brew install sip pyqt@4                                     &&
     python --version                                            &&
     pip install pyinstaller                                     &&
     pip install pyzmail                                         &&
     pip install stopit                                          &&
     pip install password                                        &&
-    sudo pip install pycrypto                                   &&
+    pip install pycrypto                                        &&
     export                                                       ;
   fi
 
