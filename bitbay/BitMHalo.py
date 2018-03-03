@@ -88,7 +88,7 @@ class RPCThread(QThread): #threading.Thread
                 return True
             else:
                 lockTHIS=0
-                return True
+                return True             
     def run(self):
         # Create server
         server = SimpleXMLRPCServer(("localhost", 8878),requestHandler=RequestHandler, logRequests = False)
@@ -149,6 +149,7 @@ if __name__ ==  '__main__':
     ch=""
     path=os.path.join(application_path,"BitTMP.dat")
     outpath=os.path.join(application_path,"Outbox.dat")
+    mailpath=os.path.join(application_path,"MailCache.dat")
     data=[]
     data.append("0")
     data.append("0")
@@ -162,6 +163,14 @@ if __name__ ==  '__main__':
     if os.stat(outpath)[6]==0:
         with open(outpath,'w') as f:
             f.write("[]")
+            f.flush()
+            os.fsync(f)
+            f.close()
+    with open(mailpath,'a+') as f:
+        f.close()
+    if os.stat(mailpath)[6]==0:
+        with open(mailpath,'w') as f:
+            f.write("{}")
             f.flush()
             os.fsync(f)
             f.close()
@@ -383,7 +392,7 @@ if __name__ ==  '__main__':
                                 connection.login(fromAddress, EmailPassword)
                                 connection.sendmail(fromAddress, toAddress, headers+"\r\n\r\n"+str(content))
                                 connection.close()
-                            else:
+                            else:                               
                                 b64=base64.b64decode(content['b64img'])
                                 text_content=unicode(content['Data'])
                                 html_content=u'<html><body>' + content['Data'] + \
@@ -489,6 +498,17 @@ if __name__ ==  '__main__':
                                         connection.login(dat['Email Address'], dat['Password'])
                                         typ, mailbox_data = connection.list()
                                         inbox = []
+                                        try:
+                                            with open(mailpath,'r') as f:
+                                                mailbox=f.readline()
+                                                f.close()
+                                            mailbox=ast.literal_eval(mailbox)
+                                            if mailbox=="":
+                                                float('a')
+                                            if dat['Email Address'] not in mailbox:
+                                                mailbox[dat['Email Address']]={}
+                                        except:
+                                            mailbox={str(dat['Email Address']):{}}                                        
                                         for line in mailbox_data:
                                             try:
                                                 flags, delimiter, mailbox_name = parse_list_response(line)
@@ -532,105 +552,121 @@ if __name__ ==  '__main__':
                                                                 continue
                                                     sys.stderr.write("\n\n"+str(msg_id)+"\n\n")
                                                     mymessage={}
-                                                    try:
-                                                        if systemexit==1:#Attempt a clean exit when possible
-                                                            systemexit=2
-                                                            sys.stderr.write(str("Closing Bitmessage..."))
-                                                            sys.exit()
-                                                        sys.stderr.write(str("\n\nFETCHING...\n\n"))
-                                                        #This is to prevent dropped connections, for now only on fetching
-                                                        timeresult = False
-                                                        try:#Let Halo know through RPC we started to download
-                                                            myrpc.MessageStatus("1","password")
-                                                        except Exception, e:
-                                                            pass
-                                                        @stopit.threading_timeoutable(timeout_param='my_timeout')
-                                                        def timethis():#If we get dropped, we can time out
-                                                            global timeresult, typ, msg_data, connection
-                                                            typ, msg_data = connection.uid('fetch', msg_id, '(RFC822)') #connection.fetch(msg_id, '(RFC822)')
-                                                            timeresult = True
-                                                        timethis(my_timeout=600)#10 minutes is very generous
-                                                        if timeresult==False:
-                                                            float("A")
-                                                        try:#Let Halo know through RPC we finished
-                                                            myrpc.MessageStatus("0","password")
-                                                        except Exception, e:
-                                                            pass
-                                                        sys.stderr.write(str("\n\nFETCHED!!\n\n"))
-                                                        #readmessages.append(msg_id)
-                                                    except:
-                                                        connection.close()
-                                                        sys.stderr.write(str("FETCH ERROR"))
-                                                        if systemexit==2:
-                                                            sys.exit()
-                                                        continue
-                                                    body = ""
-                                                    try:
-                                                        for part in msg_data:
-                                                            if isinstance(part, tuple):
-                                                                msg = email.message_from_string(part[1])
-                                                                try:
-                                                                    src = (msg['from'].split('<')[1].split('>')[0]).strip()
-                                                                except:
-                                                                    src = msg['from'].strip()
-                                                                try:
-                                                                    src1 = (msg['to'].split('<')[1].split('>')[0]).strip()
-                                                                except:
-                                                                    src1 = msg['to'].strip()
-                                                                try:
-                                                                    if msg.is_multipart():
-                                                                        for msub in msg.get_payload():
-                                                                            body = msub.get_payload(decode = True).decode(msub.get_content_charset())
-                                                                            break
-                                                                    else:
-                                                                        body = msg.get_payload(decode = True).decode(msg.get_content_charset())
-                                                                except:
-                                                                    try:
-                                                                        body=str(msg.encode('utf8'))
-                                                                    except:
-                                                                        body=str(msg)
-                                                    except Exception, e:
-                                                        sys.stderr.write(str("MESSAGE ERROR "))
-                                                        sys.stderr.write(str(e))
-                                                    mymessage['toAddress']=str(src1)
-                                                    mymessage['fromAddress']=str(src)
-                                                    try:
-                                                        body=str(body.encode('utf8'))
-                                                    except:
-                                                        sys.stderr.write(str("Not encoded"))
-                                                    try:
-                                                        body = body.split('****')[1].split('****')[0]
-                                                    except:
+                                                    if msg_id in mailbox[str(dat['Email Address'])]:
                                                         try:
-                                                            if 'You have received a payment of ' not in str(body):
-                                                                body=""
-                                                            else:
-                                                                #I'm hoping email providers will not change this as identifying the full base64 string would be challenging.
-                                                                #Any added padding gets changed when uploading the base64 image with the pyzmail library, although the bitmap is lossless
-                                                                body = body.split('<doge>\nContent-Disposition: inline\n\n')[1].split('\n--=========')[0]
-                                                                body="PAY TO EMAIL BASE64 IMAGE:"+body
-                                                        except:#Okay they changed it we can try something else
+                                                            mymessage['toAddress']=mailbox[str(dat['Email Address'])][msg_id]['toAddress']
+                                                            mymessage['fromAddress']=mailbox[str(dat['Email Address'])][msg_id]['fromAddress']
+                                                            mymessage['body']=mailbox[str(dat['Email Address'])][msg_id]['body']
+                                                            mymessage['uid']=mailbox[str(dat['Email Address'])][msg_id]['uid']
+                                                            body=mymessage['body']
+                                                        except:
+                                                            body=""
+                                                            mymessage={}
+                                                            sys.stderr.write("\n\nMessage reading error!\n\n")
+                                                    else:
+                                                        try:
+                                                            if systemexit==1:#Attempt a clean exit when possible
+                                                                systemexit=2
+                                                                sys.stderr.write(str("Closing Bitmessage..."))
+                                                                sys.exit()
+                                                            sys.stderr.write(str("\n\nFETCHING...\n\n"))
+                                                            #This is to prevent dropped connections, for now only on fetching
+                                                            timeresult = False
+                                                            try:#Let Halo know through RPC we started to download
+                                                                myrpc.MessageStatus("1","password")
+                                                            except Exception, e:
+                                                                pass
+                                                            @stopit.threading_timeoutable(timeout_param='my_timeout')
+                                                            def timethis():#If we get dropped, we can time out
+                                                                global timeresult, typ, msg_data, connection
+                                                                typ, msg_data = connection.uid('fetch', msg_id, '(RFC822)') #connection.fetch(msg_id, '(RFC822)')
+                                                                timeresult = True
+                                                            timethis(my_timeout=600)#10 minutes is very generous
+                                                            if timeresult==False:
+                                                                float("A")
+                                                            try:#Let Halo know through RPC we finished
+                                                                myrpc.MessageStatus("0","password")
+                                                            except Exception, e:
+                                                                pass
+                                                            sys.stderr.write(str("\n\nFETCHED!!\n\n"))
+                                                            #readmessages.append(msg_id)
+                                                        except:
+                                                            connection.close()
+                                                            sys.stderr.write(str("FETCH ERROR"))
+                                                            if systemexit==2:
+                                                                sys.exit()
+                                                            continue
+                                                        body = ""
+                                                        try:
+                                                            for part in msg_data:
+                                                                if isinstance(part, tuple):
+                                                                    msg = email.message_from_string(part[1])
+                                                                    try:
+                                                                        src = (msg['from'].split('<')[1].split('>')[0]).strip()
+                                                                    except:
+                                                                        src = msg['from'].strip()
+                                                                    try:
+                                                                        src1 = (msg['to'].split('<')[1].split('>')[0]).strip()
+                                                                    except:
+                                                                        src1 = msg['to'].strip()
+                                                                    try:
+                                                                        if msg.is_multipart():
+                                                                            for msub in msg.get_payload():
+                                                                                body = msub.get_payload(decode = True).decode(msub.get_content_charset())
+                                                                                break
+                                                                        else:
+                                                                            body = msg.get_payload(decode = True).decode(msg.get_content_charset())
+                                                                    except:
+                                                                        try:
+                                                                            body=str(msg.encode('utf8'))
+                                                                        except:
+                                                                            body=str(msg)
+                                                        except Exception, e:
+                                                            sys.stderr.write(str("MESSAGE ERROR "))
+                                                            sys.stderr.write(str(e))
+                                                        mymessage['toAddress']=str(src1)
+                                                        mymessage['fromAddress']=str(src)
+                                                        try:
+                                                            body=str(body.encode('utf8'))
+                                                        except:
+                                                            sys.stderr.write(str("Not encoded"))
+                                                        try:
+                                                            body = body.split('****')[1].split('****')[0]
+                                                        except:
                                                             try:
-                                                                bodymsg = email.message_from_string(str(body))
-                                                                x=0
-                                                                posx=0
-                                                                while x<len(bodymsg.get_payload()):
-                                                                    attachment = bodymsg.get_payload()[x]
-                                                                    if "bmp" in attachment.get_content_type():
-                                                                        posx=x
-                                                                    x+=1
-                                                                attachment = msg.get_payload()[posx]
-                                                                img=attachment.get_payload(decode=False)
-                                                                body=img
-                                                                body="PAY TO EMAIL BASE64 IMAGE:"+body
-                                                            except:
-                                                                sys.stderr.write(str("PARSE ERROR"))
-                                                                body = ""
-                                                    if 'fromAddress' in mymessage and body!="": #decode emails
-                                                        if '@aol' in mymessage['fromAddress'].lower() or '@mail' in mymessage['fromAddress'].lower():
-                                                            body=body.encode('utf8').replace("\r\n ","")
-                                                            if "ENCRYPTED:" in body:
-                                                                body=body.replace(" ","")
+                                                                if 'You have received a payment of ' not in str(body):
+                                                                    body=""
+                                                                else:
+                                                                    #I'm hoping email providers will not change this as identifying the full base64 string would be challenging.
+                                                                    #Any added padding gets changed when uploading the base64 image with the pyzmail library, although the bitmap is lossless
+                                                                    body = body.split('<doge>\nContent-Disposition: inline\n\n')[1].split('\n--=========')[0]
+                                                                    body="PAY TO EMAIL BASE64 IMAGE:"+body
+                                                            except:#Okay they changed it we can try something else
+                                                                try:
+                                                                    bodymsg = email.message_from_string(str(body))
+                                                                    x=0
+                                                                    posx=0
+                                                                    while x<len(bodymsg.get_payload()):
+                                                                        attachment = bodymsg.get_payload()[x]
+                                                                        if "bmp" in attachment.get_content_type():
+                                                                            posx=x
+                                                                        x+=1
+                                                                    attachment = msg.get_payload()[posx]
+                                                                    img=attachment.get_payload(decode=False)
+                                                                    body=img
+                                                                    body="PAY TO EMAIL BASE64 IMAGE:"+body
+                                                                except:
+                                                                    sys.stderr.write(str("PARSE ERROR"))
+                                                                    body = ""
+                                                        if 'fromAddress' in mymessage and body!="": #decode emails
+                                                            if '@aol' in mymessage['fromAddress'].lower() or '@mail' in mymessage['fromAddress'].lower():
+                                                                body=body.encode('utf8').replace("\r\n ","")
+                                                                if "ENCRYPTED:" in body:
+                                                                    body=body.replace(" ","")
+                                                        mymessage['body']=str(body)
+                                                        mymessage['uid']=msg_id
+                                                        if 'fromAddress' in mymessage and 'toAddress' in mymessage:
+                                                            mailbox[str(dat['Email Address'])][msg_id]=ast.literal_eval(str(mymessage))                                                        
                                                     if 'ordernumber' in dat:
                                                         if "ENCRYPTED:" in str(body):
                                                             try:
@@ -666,14 +702,16 @@ if __name__ ==  '__main__':
                                                                 body=ast.literal_eval(body)
                                                                 if body['ordernumber']==dat['ordernumber']:
                                                                     connection.uid('STORE', msg_id, '+FLAGS', '(\Deleted)')#The flags should always be in parenthesis
-                                                                    connection.expunge()
+                                                                    connection.expunge()                                                                    
                                                                     sys.stderr.write(str("\n\n\REMOVED!!\n\n"))
+                                                                    try:
+                                                                        mailbox[str(dat['Email Address'])].pop(msg_id)
+                                                                    except:
+                                                                        sys.stderr.write(str("\n\nNOT REMOVED FROM CACHE\n\n"))
                                                             except:
                                                                 sys.stderr.write(str("\n\nNOT REMOVED\n\n"))
                                                         else:
                                                             sys.stderr.write(str("\n\nNOT REMOVED\n\n"))
-                                                    mymessage['body']=str(body)
-                                                    mymessage['uid']=msg_id
                                                     if mymessage not in inbox:
                                                         inbox.append(mymessage)
                                                 #To save time and to avoid duplicates, i used to break at INBOX but we should also check Junk folder
@@ -688,6 +726,18 @@ if __name__ ==  '__main__':
                                         sys.stderr.write(str("\n\nClosing...\n\n"))
                                         connection.close()
                                         sys.stderr.write(str("\n\nCLOSED!\n\n"))
+                                        try:
+                                            waitlock()
+                                            lockTHIS=1                                            
+                                            with open(mailpath,'w') as f:
+                                                f.write(str(mailbox))
+                                                f.flush()
+                                                os.fsync(f)
+                                                f.close()
+                                            lockTHIS=0
+                                        except:
+                                            lockTHIS=0
+                                            sys.stderr.write(str("\n\Cache write error!\n\n"))
                                     except Exception, e:
                                         if systemexit==2:
                                             sys.exit()
@@ -740,7 +790,7 @@ if __name__ ==  '__main__':
                         sys.stderr.write(str("\n\n\nInbox Checked\n\n\n"))
                         try:
                             waitlock()
-                            lockTHIS=1
+                            lockTHIS=1                          
                             with open(path,'w') as f:
                                 f.write("1"+"\n")
                                 if ch=="GetMessages" or ch=="Clean Inbox":
@@ -767,7 +817,7 @@ if __name__ ==  '__main__':
                     dat=ast.literal_eval(data[2])
                     try:
                         waitlock()
-                        lockTHIS=1
+                        lockTHIS=1                      
                         with open(path,'w') as f:
                             if dat["Pubs"]==[]:
                                 addr=api.createRandomAddress("BitHalo")
@@ -803,7 +853,7 @@ if __name__ ==  '__main__':
 
                     try:
                         waitlock()
-                        lockTHIS=1
+                        lockTHIS=1                      
                         with open(path,'w') as f:
                             #addr=api.createDeterministicAddresses(dat['Address'],dat['Address'])
                             #api.addSubscription(dat['Address'], addr)
@@ -824,7 +874,7 @@ if __name__ ==  '__main__':
                             f.write(dat['Address']+"\n")
                             f.flush()
                             os.fsync(f)
-                            f.close()
+                            f.close()                   
                         lockTHIS=0
                     except:
                         lockTHIS=0
@@ -834,7 +884,7 @@ if __name__ ==  '__main__':
                     dat=ast.literal_eval(data[2])
                     try:
                         waitlock()
-                        lockTHIS=1
+                        lockTHIS=1                      
                         with open(path,'w') as f:
                             #addr=api.createDeterministicAddresses(dat['Address'],dat['Address'])
                             #api.addSubscription(dat['Address'], addr)

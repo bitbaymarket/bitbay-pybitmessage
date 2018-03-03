@@ -25,6 +25,7 @@ helper_startup.loadConfig()
 
 # TODO(xj9): Get from a config file.
 log_level = 'DEBUG'
+log_level_console = 'WARNING'
 
 def configureLogging():
     logging.config.dictConfig({
@@ -38,7 +39,7 @@ def configureLogging():
             'console': {
                 'class': 'logging.StreamHandler',
                 'formatter': 'default',
-                'level': log_level,
+                'level': log_level_console,
                 'stream': 'ext://sys.stdout'
             },
             'file': {

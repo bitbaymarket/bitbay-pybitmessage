@@ -47,9 +47,13 @@ install:
     export PATH="/usr/local/opt/python/libexec/bin:$PATH"       &&
     (brew doctor || echo skip)                                  &&
     (brew install ruby || echo skip)                            &&
+    (brew install pyenv || echo skip)                           &&
+    brew install python@2                                       &&
+    export PATH="/usr/local/opt/python@2/libexec/bin:$PATH"     &&
+    pyenv versions                                              &&
     brew tap cartr/qt4                                          &&
     brew tap-pin cartr/qt4                                      &&
-    brew install sip pyqt@4                                     &&
+    brew install pyqt@4                                         &&
     python --version                                            &&
     pip install pyinstaller                                     &&
     pip install pyzmail                                         &&
