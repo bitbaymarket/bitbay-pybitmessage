@@ -7,6 +7,9 @@ import class_api as class_api
 import parallelTestModule as parallelTestModule
 import time
 import ast
+import platform
+import appdirs
+import errno
 if os.name == 'nt':
     import msvcrt as m
 else:
@@ -88,7 +91,7 @@ class RPCThread(QThread): #threading.Thread
                 return True
             else:
                 lockTHIS=0
-                return True             
+                return True
     def run(self):
         # Create server
         server = SimpleXMLRPCServer(("localhost", 8878),requestHandler=RequestHandler, logRequests = False)
@@ -144,12 +147,19 @@ if __name__ ==  '__main__':
             application_path+="./"
         application_path=application_path.replace("//","/")
     sys.stderr.write("\nBITMHALO PATH: "+application_path+"\n")
-    os.environ["BITMESSAGE_HOME"]=application_path
-    api = class_api.getAPI(workingdir=application_path, silent=True)
+    datadir_path = application_path
+    if platform.system()=="Darwin":
+        datadir_path = appdirs.user_data_dir("BitBayClient", "BitBay")
+        try: os.makedirs(datadir_path)
+        except OSError as exc:
+            if exc.errno == errno.EEXIST and os.path.isdir(datadir_path): pass
+            else: raise
+    os.environ["BITMESSAGE_HOME"]=datadir_path
+    api = class_api.getAPI(workingdir=datadir_path, silent=True)
     ch=""
-    path=os.path.join(application_path,"BitTMP.dat")
-    outpath=os.path.join(application_path,"Outbox.dat")
-    mailpath=os.path.join(application_path,"MailCache.dat")
+    path=os.path.join(datadir_path,"BitTMP.dat")
+    outpath=os.path.join(datadir_path,"Outbox.dat")
+    mailpath=os.path.join(datadir_path,"MailCache.dat")
     data=[]
     data.append("0")
     data.append("0")
@@ -392,7 +402,7 @@ if __name__ ==  '__main__':
                                 connection.login(fromAddress, EmailPassword)
                                 connection.sendmail(fromAddress, toAddress, headers+"\r\n\r\n"+str(content))
                                 connection.close()
-                            else:                               
+                            else:
                                 b64=base64.b64decode(content['b64img'])
                                 text_content=unicode(content['Data'])
                                 html_content=u'<html><body>' + content['Data'] + \
@@ -508,7 +518,7 @@ if __name__ ==  '__main__':
                                             if dat['Email Address'] not in mailbox:
                                                 mailbox[dat['Email Address']]={}
                                         except:
-                                            mailbox={str(dat['Email Address']):{}}                                        
+                                            mailbox={str(dat['Email Address']):{}}
                                         for line in mailbox_data:
                                             try:
                                                 flags, delimiter, mailbox_name = parse_list_response(line)
@@ -666,7 +676,7 @@ if __name__ ==  '__main__':
                                                         mymessage['body']=str(body)
                                                         mymessage['uid']=msg_id
                                                         if 'fromAddress' in mymessage and 'toAddress' in mymessage:
-                                                            mailbox[str(dat['Email Address'])][msg_id]=ast.literal_eval(str(mymessage))                                                        
+                                                            mailbox[str(dat['Email Address'])][msg_id]=ast.literal_eval(str(mymessage))
                                                     if 'ordernumber' in dat:
                                                         if "ENCRYPTED:" in str(body):
                                                             try:
@@ -702,7 +712,7 @@ if __name__ ==  '__main__':
                                                                 body=ast.literal_eval(body)
                                                                 if body['ordernumber']==dat['ordernumber']:
                                                                     connection.uid('STORE', msg_id, '+FLAGS', '(\Deleted)')#The flags should always be in parenthesis
-                                                                    connection.expunge()                                                                    
+                                                                    connection.expunge()
                                                                     sys.stderr.write(str("\n\n\REMOVED!!\n\n"))
                                                                     try:
                                                                         mailbox[str(dat['Email Address'])].pop(msg_id)
@@ -728,7 +738,7 @@ if __name__ ==  '__main__':
                                         sys.stderr.write(str("\n\nCLOSED!\n\n"))
                                         try:
                                             waitlock()
-                                            lockTHIS=1                                            
+                                            lockTHIS=1
                                             with open(mailpath,'w') as f:
                                                 f.write(str(mailbox))
                                                 f.flush()
@@ -790,7 +800,7 @@ if __name__ ==  '__main__':
                         sys.stderr.write(str("\n\n\nInbox Checked\n\n\n"))
                         try:
                             waitlock()
-                            lockTHIS=1                          
+                            lockTHIS=1
                             with open(path,'w') as f:
                                 f.write("1"+"\n")
                                 if ch=="GetMessages" or ch=="Clean Inbox":
@@ -817,7 +827,7 @@ if __name__ ==  '__main__':
                     dat=ast.literal_eval(data[2])
                     try:
                         waitlock()
-                        lockTHIS=1                      
+                        lockTHIS=1
                         with open(path,'w') as f:
                             if dat["Pubs"]==[]:
                                 addr=api.createRandomAddress("BitHalo")
@@ -853,7 +863,7 @@ if __name__ ==  '__main__':
 
                     try:
                         waitlock()
-                        lockTHIS=1                      
+                        lockTHIS=1
                         with open(path,'w') as f:
                             #addr=api.createDeterministicAddresses(dat['Address'],dat['Address'])
                             #api.addSubscription(dat['Address'], addr)
@@ -874,7 +884,7 @@ if __name__ ==  '__main__':
                             f.write(dat['Address']+"\n")
                             f.flush()
                             os.fsync(f)
-                            f.close()                   
+                            f.close()
                         lockTHIS=0
                     except:
                         lockTHIS=0
@@ -884,7 +894,7 @@ if __name__ ==  '__main__':
                     dat=ast.literal_eval(data[2])
                     try:
                         waitlock()
-                        lockTHIS=1                      
+                        lockTHIS=1
                         with open(path,'w') as f:
                             #addr=api.createDeterministicAddresses(dat['Address'],dat['Address'])
                             #api.addSubscription(dat['Address'], addr)

@@ -31,6 +31,7 @@ install:
     sudo pip install pyzmail                                    &&
     sudo pip install stopit                                     &&
     sudo pip install password                                   &&
+    sudo pip install appdirs                                    &&
     export                                                      ;
   fi &&
   if [[ $ARCH == "linux64" ]]; then
@@ -41,6 +42,7 @@ install:
     sudo pip install stopit                                     &&
     sudo pip install password                                   &&
     sudo pip install pycrypto                                   &&
+    sudo pip install appdirs                                    &&
     export                                                      ;
   fi &&
   if [[ $ARCH == "mac" ]]; then
@@ -48,18 +50,21 @@ install:
     (brew doctor || echo skip)                                  &&
     (brew install ruby || echo skip)                            &&
     (brew install pyenv || echo skip)                           &&
-    brew install python@2                                       &&
+    export PATH="/usr/local/opt/python/libexec/bin:$PATH"       &&
     export PATH="/usr/local/opt/python@2/libexec/bin:$PATH"     &&
     pyenv versions                                              &&
     brew tap cartr/qt4                                          &&
     brew tap-pin cartr/qt4                                      &&
     brew install pyqt@4                                         &&
+    (brew install python@2 || brew link --overwrite python@2 || echo skip) &&
+    export PATH="/usr/local/Cellar/python@2/2.7.14_3/bin:$PATH" &&
     python --version                                            &&
     pip install pyinstaller                                     &&
     pip install pyzmail                                         &&
     pip install stopit                                          &&
     pip install password                                        &&
     pip install pycrypto                                        &&
+    pip install appdirs                                         &&
     export                                                       ;
   fi
 
@@ -109,4 +114,4 @@ deploy:
     skip_cleanup: true
     on:
       tags: true
-      repo: yshurik/bitbay-pybitmessage
+      repo: yshurik/wbb-pybitmessage
