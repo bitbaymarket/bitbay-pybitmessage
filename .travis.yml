@@ -57,7 +57,7 @@ install:
     brew tap-pin cartr/qt4                                      &&
     brew install pyqt@4                                         &&
     (brew install python@2 || brew link --overwrite python@2 || echo skip) &&
-    export PATH="/usr/local/Cellar/python@2/2.7.14_3/bin:$PATH" &&
+    export PATH="/usr/local/Cellar/python@2/2.7.15/bin:$PATH" &&
     python --version                                            &&
     pip install pyinstaller                                     &&
     pip install pyzmail                                         &&

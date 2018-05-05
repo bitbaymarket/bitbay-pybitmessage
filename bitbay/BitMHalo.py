@@ -29,6 +29,8 @@ import password
 from email.parser import HeaderParser
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
+import logging
+
 #########################################
 providers=[{'@gmail': {'imap':'imap.googlemail.com','smtp':'smtp.googlemail.com','port':587,'SSL':0}},{'@hotmail':{'imap':'imap-mail.outlook.com','smtp':'smtp-mail.outlook.com','port':587,'SSL':0}}, {'@outlook':{'imap':'imap-mail.outlook.com','smtp':'smtp-mail.outlook.com','port':587,'SSL':0}},{'@aol.com':{'imap':'imap.aol.com','smtp':'smtp.aol.com','port':587,'SSL':0}}]#Mail.com support removed. They now charge for imap/smtp {'@mail':{'imap':'imap.mail.com','smtp':'smtp.mail.com','port':587,'SSL':0}}
 imapname = 'imap.googlemail.com'
@@ -54,6 +56,8 @@ lockTHIS=0
 from PyQt4.QtCore import QThread
 import threading
 
+logger = logging.getLogger('class_api')
+
 os.environ['no_proxy'] = '127.0.0.1,localhost'
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ('/RPC2',)
@@ -66,7 +70,7 @@ class RPCThread(QThread): #threading.Thread
     class MyFuncs:
         def ExitBitmessage(self, passw):
             global systemexit
-            sys.stderr.write(str("Closing Bitmessage..."))
+            logger.warning(str("Closing Bitmessage..."))
             #if passw=='password'
             try:
                 api.stop()
@@ -146,7 +150,7 @@ if __name__ ==  '__main__':
         if application_path=="":
             application_path+="./"
         application_path=application_path.replace("//","/")
-    sys.stderr.write("\nBITMHALO PATH: "+application_path+"\n")
+    logger.warning("BITMHALO PATH: "+application_path)
     datadir_path = application_path
     if platform.system()=="Darwin":
         datadir_path = appdirs.user_data_dir("BitBayClient", "BitBay")
@@ -190,7 +194,7 @@ if __name__ ==  '__main__':
     while ch != "exit":
         if systemexit==1:
             systemexit=2
-            sys.stderr.write(str("Closing Bitmessage..."))
+            logger.warning(str("Closing Bitmessage..."))
             sys.exit()
         time.sleep(0.23456)
         ticker+=1 #We dont check email messages as compulsively not do we try resending outbox messages as compulsively
@@ -210,7 +214,7 @@ if __name__ ==  '__main__':
                 try:
                     outbox=ast.literal_eval(outbox)
                 except:
-                    sys.stderr.write(str("OUTBOX ERROR"))
+                    logger.error(str("OUTBOX ERROR"))
                     outbox=[]
                 for data1 in outbox:#Lets try sending some of these messages again
                     time.sleep(.1)
@@ -235,7 +239,7 @@ if __name__ ==  '__main__':
                                 EmailPassword=content['password']
                                 content.pop("password", None)
                         except:
-                            sys.stderr.write(str("OUTBOX PARSE ERROR"))
+                            logger.error(str("OUTBOX PARSE ERROR"))
                             toAddress="####"
                     verified=0
                     for prov in providers:
@@ -252,7 +256,7 @@ if __name__ ==  '__main__':
                     try:
                         EmailPassword=password.DecryptWithAES("Halo Master", EmailPassword)
                     except:
-                        sys.stderr.write(str("PASSWORD DECRYPTION ERROR"))
+                        logger.error(str("PASSWORD DECRYPTION ERROR"))
                     if "@" in toAddress and verified==1:
                         if "You have received a payment of " not in str(content) and "If you are new to Cryptocurrency, somebody may have sent you these coins" not in str(content):
                             content="****"+str(content)+"****"
@@ -264,7 +268,7 @@ if __name__ ==  '__main__':
                                 connection = imaplib.IMAP4_SSL(imapname)
                                 connection.login(fromAddress, EmailPassword)
                             except:
-                                sys.stderr.write(str("OUTBOX AUTHENTICATION ERROR"))
+                                logger.error(str("OUTBOX AUTHENTICATION ERROR"))
                                 ret = False
                         try:
                             if attach==0:
@@ -301,7 +305,7 @@ if __name__ ==  '__main__':
                                 else:
                                     float("A")
                         except Exception, e:
-                            sys.stderr.write(str("OUTBOX SENDING ERROR: ")+str(e))
+                            logger.error(str("OUTBOX SENDING ERROR: ")+str(e))
                             ret = False
                     if ret != False or toAddress=="####":#We are not resending bitmessage at the moment
                         outbox.pop(pos)
@@ -322,7 +326,7 @@ if __name__ ==  '__main__':
                 try:
                     data[2]=f.readline().strip()
                 except:
-                    sys.stderr.write(str("File error"))
+                    logger.error(str("File error"))
                 try:
                     data[3]=f.readline().strip()
                 except:
@@ -350,7 +354,7 @@ if __name__ ==  '__main__':
                             fromAddress=matchObj.group(2)
                             toAddress=matchObj.group(4)
                         except:
-                            sys.stderr.write(str("ENCRYPTION ERROR"))
+                            logger.error(str("ENCRYPTION ERROR"))
                     else:
                         try:
                             content=ast.literal_eval(data[2])
@@ -360,7 +364,7 @@ if __name__ ==  '__main__':
                                 EmailPassword=content['password']
                                 content.pop("password", None)
                         except:
-                            sys.stderr.write(str("PARSE ERROR"))
+                            logger.error(str("PARSE ERROR"))
                             toAddress=""
                             content="####"
                     verified=0
@@ -378,7 +382,7 @@ if __name__ ==  '__main__':
                     try:
                         EmailPassword=password.DecryptWithAES("Halo Master", EmailPassword)
                     except:
-                        sys.stderr.write(str("PASSWORD DECRYPTION ERROR"))
+                        logger.error(str("PASSWORD DECRYPTION ERROR"))
                     if "@" in toAddress and verified==1:
                         if "You have received a payment of " not in str(content) and "If you are new to Cryptocurrency, somebody may have sent you these coins" not in str(content):
                             attach=0
@@ -390,7 +394,7 @@ if __name__ ==  '__main__':
                                 connection = imaplib.IMAP4_SSL(imapname)
                                 connection.login(fromAddress, EmailPassword)
                             except:
-                                sys.stderr.write(str("AUTHENTICATION ERROR"))
+                                logger.error(str("AUTHENTICATION ERROR"))
                                 ret = False
                         try:
                             if attach==0:
@@ -429,7 +433,7 @@ if __name__ ==  '__main__':
                                     float("A")
                                 ret = True
                         except Exception, e:
-                            sys.stderr.write(str("SEND ERROR: ")+ str(e))
+                            logger.error(str("SEND ERROR: ")+ str(e))
                             ret = False
                         if ret== False:#It failed lets write it to an outbox... We could also try repeating until solved. Reporting an email fail via api.
                             outbox=[]
@@ -449,7 +453,7 @@ if __name__ ==  '__main__':
                                     os.fsync(f)
                                     f.close()
                             except:
-                                sys.stderr.write(str("File Error"))
+                                logger.error(str("File Error"))
                             ret="False"+str(data[2])
                     else:
                         try:
@@ -470,10 +474,10 @@ if __name__ ==  '__main__':
                         lockTHIS=0
                     except:
                         lockTHIS=0
-                        sys.stderr.write(str("File Error"))
+                        logger.error(str("File Error"))
                 if ch == "GetMessages" or ch == "Remove Order" or ch == "Clean Inbox":
                     if ticker2>22:
-                        sys.stderr.write(str("\n\n\nChecking Inbox...\n\n\n"))
+                        logger.warning(str("Checking Inbox..."))
                         ticker2=0
                         #Gets messages
                         inbox=[]
@@ -486,7 +490,7 @@ if __name__ ==  '__main__':
                                 try:
                                     dat['Password']=password.DecryptWithAES("Halo Master", dat['Password'])
                                 except:
-                                    sys.stderr.write(str("PASSWORD DECRYPTION ERROR"))
+                                    logger.error(str("PASSWORD DECRYPTION ERROR"))
                                 verified=0
                                 for prov in providers:
                                     for key, val in prov.items():
@@ -532,13 +536,13 @@ if __name__ ==  '__main__':
                                                 try:
                                                     typ, msg_ids1 = connection.uid('search', None, '(SUBJECT "Halo")')#connection.search(None, '(SUBJECT "Halo")')
                                                 except Exception, e:
-                                                    sys.stderr.write(str("SEARCH ERROR")+str(e))
+                                                    logger.error(str("SEARCH ERROR")+str(e))
                                                     continue
                                                 msg_ids = msg_ids1[0]
                                                 try:
                                                     msg_ids = msg_ids.split()
                                                 except:
-                                                    sys.stderr.write(str("Split Error"))
+                                                    logger.error(str("Split Error"))
                                                 src=""
                                                 src1=""
                                                 mydict2={}
@@ -560,7 +564,7 @@ if __name__ ==  '__main__':
                                                                     continue
                                                             else:
                                                                 continue
-                                                    sys.stderr.write("\n\n"+str(msg_id)+"\n\n")
+                                                    logger.warning("msg_id: "+str(msg_id))
                                                     mymessage={}
                                                     if msg_id in mailbox[str(dat['Email Address'])]:
                                                         try:
@@ -572,14 +576,14 @@ if __name__ ==  '__main__':
                                                         except:
                                                             body=""
                                                             mymessage={}
-                                                            sys.stderr.write("\n\nMessage reading error!\n\n")
+                                                            logger.error("Message reading error!")
                                                     else:
                                                         try:
                                                             if systemexit==1:#Attempt a clean exit when possible
                                                                 systemexit=2
-                                                                sys.stderr.write(str("Closing Bitmessage..."))
+                                                                logger.warning(str("Closing Bitmessage..."))
                                                                 sys.exit()
-                                                            sys.stderr.write(str("\n\nFETCHING...\n\n"))
+                                                            logger.warning(str("FETCHING..."))
                                                             #This is to prevent dropped connections, for now only on fetching
                                                             timeresult = False
                                                             try:#Let Halo know through RPC we started to download
@@ -598,11 +602,11 @@ if __name__ ==  '__main__':
                                                                 myrpc.MessageStatus("0","password")
                                                             except Exception, e:
                                                                 pass
-                                                            sys.stderr.write(str("\n\nFETCHED!!\n\n"))
+                                                            logger.warning(str("FETCHED!!"))
                                                             #readmessages.append(msg_id)
                                                         except:
                                                             connection.close()
-                                                            sys.stderr.write(str("FETCH ERROR"))
+                                                            logger.error(str("FETCH ERROR"))
                                                             if systemexit==2:
                                                                 sys.exit()
                                                             continue
@@ -632,14 +636,13 @@ if __name__ ==  '__main__':
                                                                         except:
                                                                             body=str(msg)
                                                         except Exception, e:
-                                                            sys.stderr.write(str("MESSAGE ERROR "))
-                                                            sys.stderr.write(str(e))
+                                                            logger.error(str("MESSAGE ERROR: ")+str(e))
                                                         mymessage['toAddress']=str(src1)
                                                         mymessage['fromAddress']=str(src)
                                                         try:
                                                             body=str(body.encode('utf8'))
                                                         except:
-                                                            sys.stderr.write(str("Not encoded"))
+                                                            logger.error(str("Not encoded"))
                                                         try:
                                                             body = body.split('****')[1].split('****')[0]
                                                         except:
@@ -666,7 +669,7 @@ if __name__ ==  '__main__':
                                                                     body=img
                                                                     body="PAY TO EMAIL BASE64 IMAGE:"+body
                                                                 except:
-                                                                    sys.stderr.write(str("PARSE ERROR"))
+                                                                    logger.error(str("PARSE ERROR"))
                                                                     body = ""
                                                         if 'fromAddress' in mymessage and body!="": #decode emails
                                                             if '@aol' in mymessage['fromAddress'].lower() or '@mail' in mymessage['fromAddress'].lower():
@@ -713,15 +716,15 @@ if __name__ ==  '__main__':
                                                                 if body['ordernumber']==dat['ordernumber']:
                                                                     connection.uid('STORE', msg_id, '+FLAGS', '(\Deleted)')#The flags should always be in parenthesis
                                                                     connection.expunge()
-                                                                    sys.stderr.write(str("\n\n\REMOVED!!\n\n"))
+                                                                    logger.warning(str("REMOVED!!"))
                                                                     try:
                                                                         mailbox[str(dat['Email Address'])].pop(msg_id)
                                                                     except:
-                                                                        sys.stderr.write(str("\n\nNOT REMOVED FROM CACHE\n\n"))
+                                                                        logger.error(str("NOT REMOVED FROM CACHE"))
                                                             except:
-                                                                sys.stderr.write(str("\n\nNOT REMOVED\n\n"))
+                                                                logger.error(str("NOT REMOVED"))
                                                         else:
-                                                            sys.stderr.write(str("\n\nNOT REMOVED\n\n"))
+                                                            logger.warning(str("NOT REMOVED"))
                                                     if mymessage not in inbox:
                                                         inbox.append(mymessage)
                                                 #To save time and to avoid duplicates, i used to break at INBOX but we should also check Junk folder
@@ -729,13 +732,13 @@ if __name__ ==  '__main__':
                                                 #   break
                                             except:#Mailbox error
                                                 traceback.print_exc()
-                                                sys.stderr.write(str("INBOX ERROR"))
+                                                logger.warning(str("INBOX ERROR"))
                                                 if systemexit==2:
                                                     sys.exit()
                                                 pass
-                                        sys.stderr.write(str("\n\nClosing...\n\n"))
+                                        logger.warning(str("Closing..."))
                                         connection.close()
-                                        sys.stderr.write(str("\n\nCLOSED!\n\n"))
+                                        logger.warning(str("CLOSED!"))
                                         try:
                                             waitlock()
                                             lockTHIS=1
@@ -747,11 +750,11 @@ if __name__ ==  '__main__':
                                             lockTHIS=0
                                         except:
                                             lockTHIS=0
-                                            sys.stderr.write(str("\n\Cache write error!\n\n"))
+                                            logger.error(str("Cache write error!"))
                                     except Exception, e:
                                         if systemexit==2:
                                             sys.exit()
-                                        sys.stderr.write(str("\n\n\nException with inbox\n\n\n"))
+                                        logger.error(str("Exception with inbox"))
                                         ret=False
                                         traceback.print_exc()
                         except Exception, e:
@@ -782,7 +785,7 @@ if __name__ ==  '__main__':
                         except:
                             a = api.getAllInboxMessages()
                             sentmessages = "False"
-                            sys.stderr.write(str("Inbox Clean Error"))
+                            logger.error(str("Inbox Clean Error"))
                         if ch != "Clean Inbox":
                             a = api.getAllInboxMessages()
                         try:
@@ -795,9 +798,9 @@ if __name__ ==  '__main__':
                         try:
                             status=api.clientStatus()
                         except:
-                            sys.stderr.write(str("Status Error"))
+                            logger.error(str("Status Error"))
                             status=""
-                        sys.stderr.write(str("\n\n\nInbox Checked\n\n\n"))
+                        logger.warning(str("Inbox Checked"))
                         try:
                             waitlock()
                             lockTHIS=1
@@ -843,8 +846,7 @@ if __name__ ==  '__main__':
                                     except:
                                         addr=" "
                                 addr2=api.createDeterministicAddresses(str(key2[:14]+key[-14:]),"BitHalo")
-                                sys.stderr.write(str("\n\n\n"))
-                                sys.stderr.write(str(addr))
+                                logger.warning("addr: "+str(addr))
                             f.write("1"+"\n")
                             f.write("new1"+"\n")
                             f.write(addr+"\n")
@@ -856,7 +858,7 @@ if __name__ ==  '__main__':
                     except:
                         lockTHIS=0
                         traceback.print_exc()
-                        sys.stderr.write(str("New Address Error"))
+                        logger.error(str("New Address Error"))
                 if ch == "Add Channel":
                     #Make a new channel address and return it
                     dat=ast.literal_eval(data[2])
@@ -888,7 +890,7 @@ if __name__ ==  '__main__':
                         lockTHIS=0
                     except:
                         lockTHIS=0
-                        sys.stderr.write(str("New Address Error"))
+                        logger.error(str("New Address Error"))
                 if ch == "Remove Channel":
                     #Make a new channel address and return it
                     dat=ast.literal_eval(data[2])
@@ -918,8 +920,8 @@ if __name__ ==  '__main__':
                     except:
                         lockTHIS=0
                         traceback.print_exc()
-                        sys.stderr.write(str("New Address Error"))
+                        logger.error(str("New Address Error"))
             except:
                 if systemexit==2:
                     sys.exit()
-                sys.stderr.write(str("Checking/Thread Error"))
+                logger.error(str("Checking/Thread Error"))
