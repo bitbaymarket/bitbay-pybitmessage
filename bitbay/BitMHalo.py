@@ -70,7 +70,7 @@ class RPCThread(QThread): #threading.Thread
     class MyFuncs:
         def ExitBitmessage(self, passw):
             global systemexit
-            logger.warning(str("Closing Bitmessage..."))
+            logger.warning(str("bitmhalo: Closing Bitmessage..."))
             #if passw=='password'
             try:
                 api.stop()
@@ -194,7 +194,7 @@ if __name__ ==  '__main__':
     while ch != "exit":
         if systemexit==1:
             systemexit=2
-            logger.warning(str("Closing Bitmessage..."))
+            logger.warning(str("bitmhalo: Closing Bitmessage..."))
             sys.exit()
         time.sleep(0.23456)
         ticker+=1 #We dont check email messages as compulsively not do we try resending outbox messages as compulsively
@@ -214,7 +214,7 @@ if __name__ ==  '__main__':
                 try:
                     outbox=ast.literal_eval(outbox)
                 except:
-                    logger.error(str("OUTBOX ERROR"))
+                    logger.error("bitmhalo: outbox: %s" % traceback.format_exc())
                     outbox=[]
                 for data1 in outbox:#Lets try sending some of these messages again
                     time.sleep(.1)
@@ -239,7 +239,7 @@ if __name__ ==  '__main__':
                                 EmailPassword=content['password']
                                 content.pop("password", None)
                         except:
-                            logger.error(str("OUTBOX PARSE ERROR"))
+                            logger.error("bitmhalo: outbox parsing: %s" % traceback.format_exc())
                             toAddress="####"
                     verified=0
                     for prov in providers:
@@ -256,7 +256,7 @@ if __name__ ==  '__main__':
                     try:
                         EmailPassword=password.DecryptWithAES("Halo Master", EmailPassword)
                     except:
-                        logger.error(str("PASSWORD DECRYPTION ERROR"))
+                        logger.error("bitmhalo: password decryption: %s" % traceback.format_exc())
                     if "@" in toAddress and verified==1:
                         if "You have received a payment of " not in str(content) and "If you are new to Cryptocurrency, somebody may have sent you these coins" not in str(content):
                             content="****"+str(content)+"****"
@@ -268,7 +268,7 @@ if __name__ ==  '__main__':
                                 connection = imaplib.IMAP4_SSL(imapname)
                                 connection.login(fromAddress, EmailPassword)
                             except:
-                                logger.error(str("OUTBOX AUTHENTICATION ERROR"))
+                                logger.error("bitmhalo: imap login: %s" % traceback.format_exc())
                                 ret = False
                         try:
                             if attach==0:
@@ -305,7 +305,7 @@ if __name__ ==  '__main__':
                                 else:
                                     float("A")
                         except Exception, e:
-                            logger.error(str("OUTBOX SENDING ERROR: ")+str(e))
+                            logger.error("bitmhalo: smtp send: %s, %s" % (str(e), traceback.format_exc()))
                             ret = False
                     if ret != False or toAddress=="####":#We are not resending bitmessage at the moment
                         outbox.pop(pos)
@@ -326,7 +326,7 @@ if __name__ ==  '__main__':
                 try:
                     data[2]=f.readline().strip()
                 except:
-                    logger.error(str("File error"))
+                    logger.error("bitmhalo: file: %s %s" % (path, traceback.format_exc()))
                 try:
                     data[3]=f.readline().strip()
                 except:
@@ -354,7 +354,7 @@ if __name__ ==  '__main__':
                             fromAddress=matchObj.group(2)
                             toAddress=matchObj.group(4)
                         except:
-                            logger.error(str("ENCRYPTION ERROR"))
+                            logger.error("bitmhalo: encryption: %s" % traceback.format_exc())
                     else:
                         try:
                             content=ast.literal_eval(data[2])
@@ -364,7 +364,7 @@ if __name__ ==  '__main__':
                                 EmailPassword=content['password']
                                 content.pop("password", None)
                         except:
-                            logger.error(str("PARSE ERROR"))
+                            logger.error("bitmhalo: parse: %s" % traceback.format_exc())
                             toAddress=""
                             content="####"
                     verified=0
@@ -382,7 +382,7 @@ if __name__ ==  '__main__':
                     try:
                         EmailPassword=password.DecryptWithAES("Halo Master", EmailPassword)
                     except:
-                        logger.error(str("PASSWORD DECRYPTION ERROR"))
+                        logger.error("bitmhalo: password aes decrypt: %s" % traceback.format_exc())
                     if "@" in toAddress and verified==1:
                         if "You have received a payment of " not in str(content) and "If you are new to Cryptocurrency, somebody may have sent you these coins" not in str(content):
                             attach=0
@@ -394,7 +394,7 @@ if __name__ ==  '__main__':
                                 connection = imaplib.IMAP4_SSL(imapname)
                                 connection.login(fromAddress, EmailPassword)
                             except:
-                                logger.error(str("AUTHENTICATION ERROR"))
+                                logger.error("bitmhalo: imap login: %s" % traceback.format_exc())
                                 ret = False
                         try:
                             if attach==0:
@@ -433,7 +433,7 @@ if __name__ ==  '__main__':
                                     float("A")
                                 ret = True
                         except Exception, e:
-                            logger.error(str("SEND ERROR: ")+ str(e))
+                            logger.error("bitmhalo: smtp: %s, %s" % (str(e), traceback.format_exc()))
                             ret = False
                         if ret== False:#It failed lets write it to an outbox... We could also try repeating until solved. Reporting an email fail via api.
                             outbox=[]
@@ -453,12 +453,14 @@ if __name__ ==  '__main__':
                                     os.fsync(f)
                                     f.close()
                             except:
-                                logger.error(str("File Error"))
+                                logger.error("bitmhalo: file: %s, %s" % (outpath, traceback.format_exc()))
                             ret="False"+str(data[2])
                     else:
+                        logger.info("bitmhalo: about to send: %s" % str(content))
                         try:
                             ret = api.sendMessage(fromAddress,toAddress,"BitHalo",str(content))
                         except Exception, e:
+                            logger.error("bitmhalo: bm send: %s, %s" % (str(e), traceback.format_exc()))
                             ret = "False"+str(content)
                     try:
                         waitlock()
@@ -474,10 +476,10 @@ if __name__ ==  '__main__':
                         lockTHIS=0
                     except:
                         lockTHIS=0
-                        logger.error(str("File Error"))
+                        logger.error("bitmhalo: file: %s, %s" % (path, traceback.format_exc()))
                 if ch == "GetMessages" or ch == "Remove Order" or ch == "Clean Inbox":
                     if ticker2>22:
-                        logger.warning(str("Checking Inbox..."))
+                        logger.info("bitmhalo: checking Inbox...")
                         ticker2=0
                         #Gets messages
                         inbox=[]
@@ -490,7 +492,7 @@ if __name__ ==  '__main__':
                                 try:
                                     dat['Password']=password.DecryptWithAES("Halo Master", dat['Password'])
                                 except:
-                                    logger.error(str("PASSWORD DECRYPTION ERROR"))
+                                    logger.error("bitmhalo: password aes decrypt: %s" % traceback.format_exc())
                                 verified=0
                                 for prov in providers:
                                     for key, val in prov.items():
@@ -536,13 +538,13 @@ if __name__ ==  '__main__':
                                                 try:
                                                     typ, msg_ids1 = connection.uid('search', None, '(SUBJECT "Halo")')#connection.search(None, '(SUBJECT "Halo")')
                                                 except Exception, e:
-                                                    logger.error(str("SEARCH ERROR")+str(e))
+                                                    logger.error("bitmhalo: search: %s, %s" % (str(e), traceback.format_exc()))
                                                     continue
                                                 msg_ids = msg_ids1[0]
                                                 try:
                                                     msg_ids = msg_ids.split()
                                                 except:
-                                                    logger.error(str("Split Error"))
+                                                    logger.error("bitmhalo: split: %s" % traceback.format_exc())
                                                 src=""
                                                 src1=""
                                                 mydict2={}
@@ -564,7 +566,7 @@ if __name__ ==  '__main__':
                                                                     continue
                                                             else:
                                                                 continue
-                                                    logger.warning("msg_id: "+str(msg_id))
+                                                    logger.info("bitmhalo: msg_id: "+str(msg_id))
                                                     mymessage={}
                                                     if msg_id in mailbox[str(dat['Email Address'])]:
                                                         try:
@@ -576,14 +578,14 @@ if __name__ ==  '__main__':
                                                         except:
                                                             body=""
                                                             mymessage={}
-                                                            logger.error("Message reading error!")
+                                                            logger.error("bitmhalo: message read: %s" % traceback.format_exc())
                                                     else:
                                                         try:
                                                             if systemexit==1:#Attempt a clean exit when possible
                                                                 systemexit=2
-                                                                logger.warning(str("Closing Bitmessage..."))
+                                                                logger.warning("bitmhalo: closing...")
                                                                 sys.exit()
-                                                            logger.warning(str("FETCHING..."))
+                                                            logger.debug("bitmhalo: fetching...")
                                                             #This is to prevent dropped connections, for now only on fetching
                                                             timeresult = False
                                                             try:#Let Halo know through RPC we started to download
@@ -602,11 +604,11 @@ if __name__ ==  '__main__':
                                                                 myrpc.MessageStatus("0","password")
                                                             except Exception, e:
                                                                 pass
-                                                            logger.warning(str("FETCHED!!"))
+                                                            logger.debug("bitmhalo: fetched")
                                                             #readmessages.append(msg_id)
                                                         except:
                                                             connection.close()
-                                                            logger.error(str("FETCH ERROR"))
+                                                            logger.error("bitmhalo: fetch: %s" % traceback.format_exc())
                                                             if systemexit==2:
                                                                 sys.exit()
                                                             continue
@@ -636,13 +638,13 @@ if __name__ ==  '__main__':
                                                                         except:
                                                                             body=str(msg)
                                                         except Exception, e:
-                                                            logger.error(str("MESSAGE ERROR: ")+str(e))
+                                                            logger.error("bitmhalo: message read: %s" % traceback.format_exc())
                                                         mymessage['toAddress']=str(src1)
                                                         mymessage['fromAddress']=str(src)
                                                         try:
                                                             body=str(body.encode('utf8'))
                                                         except:
-                                                            logger.error(str("Not encoded"))
+                                                            logger.error("bitmhalo: not encoded")
                                                         try:
                                                             body = body.split('****')[1].split('****')[0]
                                                         except:
@@ -669,7 +671,7 @@ if __name__ ==  '__main__':
                                                                     body=img
                                                                     body="PAY TO EMAIL BASE64 IMAGE:"+body
                                                                 except:
-                                                                    logger.error(str("PARSE ERROR"))
+                                                                    logger.error("bitmhalo: parse: %s" % traceback.format_exc())
                                                                     body = ""
                                                         if 'fromAddress' in mymessage and body!="": #decode emails
                                                             if '@aol' in mymessage['fromAddress'].lower() or '@mail' in mymessage['fromAddress'].lower():
@@ -716,29 +718,28 @@ if __name__ ==  '__main__':
                                                                 if body['ordernumber']==dat['ordernumber']:
                                                                     connection.uid('STORE', msg_id, '+FLAGS', '(\Deleted)')#The flags should always be in parenthesis
                                                                     connection.expunge()
-                                                                    logger.warning(str("REMOVED!!"))
+                                                                    logger.info("bitmhalo: removed, msg_id: %s" % msg_id)
                                                                     try:
                                                                         mailbox[str(dat['Email Address'])].pop(msg_id)
                                                                     except:
-                                                                        logger.error(str("NOT REMOVED FROM CACHE"))
+                                                                        logger.error("bitmhalo: not removed from cache, msg_id: %s, %s" % (msg_id, traceback.format_exc()))
                                                             except:
-                                                                logger.error(str("NOT REMOVED"))
+                                                                logger.error("bitmhalo: not removed: %s" % traceback.format_exc())
                                                         else:
-                                                            logger.warning(str("NOT REMOVED"))
+                                                            logger.info("bitmhalo: not removed, msg_id: %s" % msg_id)
                                                     if mymessage not in inbox:
                                                         inbox.append(mymessage)
                                                 #To save time and to avoid duplicates, i used to break at INBOX but we should also check Junk folder
                                                 #if str(mailbox_name)=="INBOX":
                                                 #   break
                                             except:#Mailbox error
-                                                traceback.print_exc()
-                                                logger.warning(str("INBOX ERROR"))
+                                                logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
                                                 if systemexit==2:
                                                     sys.exit()
                                                 pass
-                                        logger.warning(str("Closing..."))
+                                        logger.warning("bitmhalo: closing...")
                                         connection.close()
-                                        logger.warning(str("CLOSED!"))
+                                        logger.warning("bitmhalo: closed")
                                         try:
                                             waitlock()
                                             lockTHIS=1
@@ -750,17 +751,16 @@ if __name__ ==  '__main__':
                                             lockTHIS=0
                                         except:
                                             lockTHIS=0
-                                            logger.error(str("Cache write error!"))
+                                            logger.error("bitmhalo: cache: %s, %s" % (mailpath, traceback.format_exc()))
                                     except Exception, e:
                                         if systemexit==2:
                                             sys.exit()
-                                        logger.error(str("Exception with inbox"))
+                                        logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
                                         ret=False
-                                        traceback.print_exc()
                         except Exception, e:
                             if systemexit==2:
                                 sys.exit()
-                            traceback.print_exc()
+                            logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
                             pass
                         try:
                             if ch == "Clean Inbox":
@@ -785,7 +785,7 @@ if __name__ ==  '__main__':
                         except:
                             a = api.getAllInboxMessages()
                             sentmessages = "False"
-                            logger.error(str("Inbox Clean Error"))
+                            logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
                         if ch != "Clean Inbox":
                             a = api.getAllInboxMessages()
                         try:
@@ -798,9 +798,9 @@ if __name__ ==  '__main__':
                         try:
                             status=api.clientStatus()
                         except:
-                            logger.error(str("Status Error"))
+                            logger.error("bitmhalo: status: %s" % traceback.format_exc())
                             status=""
-                        logger.warning(str("Inbox Checked"))
+                        logger.info(str("bitmhalo: inbox checked"))
                         try:
                             waitlock()
                             lockTHIS=1
@@ -823,7 +823,7 @@ if __name__ ==  '__main__':
                             lockTHIS=0
                         except Exception, e:
                             lockTHIS=0
-                            traceback.print_exc()
+                            logger.error("bitmhalo: open: %s, %s" % (path, traceback.format_exc()))
                             pass
                 if ch == "new":
                     #Make a new address and return it
@@ -857,8 +857,7 @@ if __name__ ==  '__main__':
                         lockTHIS=0
                     except:
                         lockTHIS=0
-                        traceback.print_exc()
-                        logger.error(str("New Address Error"))
+                        logger.error("bitmhalo: new address: %s" % traceback.format_exc())
                 if ch == "Add Channel":
                     #Make a new channel address and return it
                     dat=ast.literal_eval(data[2])
@@ -890,7 +889,7 @@ if __name__ ==  '__main__':
                         lockTHIS=0
                     except:
                         lockTHIS=0
-                        logger.error(str("New Address Error"))
+                        logger.error("bitmhalo: add channel: %s" % traceback.format_exc())
                 if ch == "Remove Channel":
                     #Make a new channel address and return it
                     dat=ast.literal_eval(data[2])
@@ -919,9 +918,8 @@ if __name__ ==  '__main__':
                         lockTHIS=0
                     except:
                         lockTHIS=0
-                        traceback.print_exc()
-                        logger.error(str("New Address Error"))
+                        logger.error("bitmhalo: remove channel: %s" % traceback.format_exc())
             except:
                 if systemexit==2:
                     sys.exit()
-                logger.error(str("Checking/Thread Error"))
+                logger.error("bitmhalo: checking/thread: %s" % traceback.format_exc())
