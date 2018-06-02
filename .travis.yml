@@ -4,15 +4,15 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: ARCH="linux64" DEPLOY_FILE=bitmhalo_linux64.tgz
+      env: ARCH="linux64" DEPLOY_FILE=market_tracker_linux64.tgz
     - os: linux
       dist: trusty
       sudo: required
-      env: ARCH="linux32" DEPLOY_FILE=bitmhalo_linux32.tgz
+      env: ARCH="linux32" DEPLOY_FILE=market_tracker_linux32.tgz
     - os: osx
       osx_image: xcode7.3
       compiler: clang
-      env: ARCH="mac" DEPLOY_FILE=bitmhalo_mac.zip
+      env: ARCH="mac" DEPLOY_FILE=market_tracker_mac.zip
 
 install:
 - export REPOL=https://github.com/bitbaymarket/bitbay-prebuilt-libs1
@@ -75,43 +75,25 @@ before_script:
 script:
 - cd "$TRAVIS_BUILD_DIR"
 - ls
-- pyinstaller bitbay/BitMHalo.py -F -p src
+- pyinstaller bitbay/market_tracker.py -F -p src
 - ls dist
-- file dist/BitMHalo
+- file dist/market_tracker
 - >
   if [[ $ARCH == "linux32" ]]; then
-    ldd dist/BitMHalo                           &&
-    mv dist/BitMHalo .                          &&
-    tar -zcf $DEPLOY_FILE BitMHalo              ;
+    ldd dist/market_tracker                           &&
+    mv dist/market_tracker .                          &&
+    tar -zcf $DEPLOY_FILE market_tracker              ;
   fi &&
   if [[ $ARCH == "linux64" ]]; then
-    ldd dist/BitMHalo                           &&
-    mv dist/BitMHalo .                          &&
-    tar -zcf $DEPLOY_FILE BitMHalo              ;
+    ldd dist/market_tracker                           &&
+    mv dist/market_tracker .                          &&
+    tar -zcf $DEPLOY_FILE market_tracker              ;
   fi &&
   if [[ $ARCH == "mac" ]]; then
-    otool -L dist/BitMHalo                      &&
-    mv dist/BitMHalo .                          &&
-    zip -r $DEPLOY_FILE BitMHalo                ;
+    otool -L dist/market_tracker                      &&
+    mv dist/market_tracker .                          &&
+    zip -r $DEPLOY_FILE market_tracker                ;
   fi
 
 - file $DEPLOY_FILE
 
-deploy:
-  - provider: releases
-    api_key:
-      secure: T8ZHZ2bxRspLkbwbGMoIIjUfqhUHpBxRxA0CkJ01FND2IUd4hqCiPoGuhZytE8uQTytg6scIH/91DaoegX9u8/0Ez+71g+Zq3jXA15s04Mwz+2E/VNhHIvvBev+AgTRKJbp7eTEqsvlY61VeJQlPwFfBBs+1szNKePo+QAHxrJh/z9iLoUjDadanmrYewGCQq8Z4uj0L01c34hF1D9rcyT3fNWr3hcpCh2uBMIqzCxQMsbmuU0kHjl2eyAnCL54mGkADXOkU0cZLL3v8CvjAcJdMx5fWrY8JSiTVtMUTkFhHVR6aDAQfWTpfq5YHJyIeN010HtuRtaYDOlwblo6CeQpB4giAe59ln8uF7CF/6t6yeWJ4nYXDG7GgE7U6R62GpUJrOCimnAfAt7lLfcqh9eOoD3p2pSL3bi/OkkjKTzh6WWqy4+rwXt81O1dDi7fqy/nE0Sx62RGBjgYpNOTZ+x+FPfRQ+VZ4SyDXCPC/tr/ETiyLZH+bI4Yr919LxvW5Ta8yBr/Fv2ZK8S7X1+/kz4cevLTAkbeDMDXU1xzmY7r24XPe1oNIfa30PiY5uxf19o6oJOpfW/nnFAjPLnFkm4WdWVY/R8PnnUyLPRw88rKdT8utabRBig35E24K2CbNokGO01Y5ptfeuWrRkpLpExqxIGrktcoHniy+d1/unIc=
-    file: $TRAVIS_BUILD_DIR/$DEPLOY_FILE
-    skip_cleanup: true
-    on:
-      tags: true
-      repo: bitbaymarket/bitbay-pybitmessage
-
-  - provider: releases
-    api_key:
-      secure: dD/la2YFKswuu+B/+v0jnMnOD9zkwyncIQPB5gQE4hEbYRs/C2Ic0AFhZLEGq5xqLriDofqShaGk2rw8JWhSeT8sBcv5ayucrXCbQe/3+MwlKTtfnu/gHVqj8YDSTZriZ0NNeEFyXHE8LUkWdHnsjFU8Q/bkmhe1m+DMUb05Bcj8Yl12xYAuaqVbinGbw5y9U2DLx2n4AZ9xQ5Ry1I8nqgZAEKxflRPGNL4T2bMfQdVoBiRuuq5hxT0M/GJcxsLXqlBywQw57y2EzROLcKMwBuWaO32/tAXbZplqJjiDctqVEjTnnvkbtDsAqb9Er8XDe7TOXjO+dKs8sqUljzT8TnrgHXiL0yi2vZUxzvWZa4xfttQPEJ/tXxm9GXdv2wBxOmWUJt42q0TuZkOzNYo0OMNVvHwxuQOgklDM5t8DCeJucyld12F27DYeoLBSCWKP0zEhu/CouPLk+d5aBh0Its1RZT4YzyXSoc8C+1tphZtv4JYhq8Gs5ZryMlJbGItNlx86+FjZML3GDbZ5JXxuV+NCdsT31q8bFHjQ/UoJhh6yCBebKFD6WyMKGprBikFQG8wTzoPsszVvnFPLQupjdg+ePQm8Lw+x1LGX6gUcx0TavhiyyajQKnEV42g15TYm+KVmr6oG9csdIWOZvKj7dCNzg8NXWe+eg2xYl2R5ABw=
-    file: $TRAVIS_BUILD_DIR/$DEPLOY_FILE
-    skip_cleanup: true
-    on:
-      tags: true
-      repo: yshurik/wbb-pybitmessage
