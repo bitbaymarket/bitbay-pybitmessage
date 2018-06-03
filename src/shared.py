@@ -206,47 +206,9 @@ def lookupAppdataFolder():
                 argdir=arg
     except:
         pass
-    workingdir=""
-    if workingdir!="":
-        dataFolder=workingdir+APPNAME
-        if os.name == 'nt':
-            dataFolder+="\\"
-        else:
-            dataFolder+="/"
-        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
-        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
-        return dataFolder
-    elif sysdir!="":
-        if os.name == 'nt':
-            dataFolder=sysdir+"\\"+APPNAME+"\\"
-        else:
-        	dataFolder=sysdir+"/"+APPNAME+"/"
-        dataFolder=dataFolder.replace("path=","")
-        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
-        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
-        return dataFolder
-    elif argdir!="":
-        dataFolder=argdir
-        dataFolder=dataFolder.replace("python ","")
-        dataFolder=dataFolder.replace("python2.7 ","")
-        dataFolder=dataFolder.replace("BitMHalo.py","")
-        dataFolder=dataFolder.replace("BitMHalo.exe","")
-        dataFolder=dataFolder.replace("BitMHalo","")
-        dataFolder=dataFolder.replace("bitmessagemain.exe","")
-        dataFolder=dataFolder.replace("bitmessagemain.py","")
-        dataFolder+=APPNAME
-        if os.name != "nt":
-            if dataFolder=="":
-                dataFolder+="./"
-            dataFolder=dataFolder.replace("//","/")
-        if os.name == 'nt':
-            dataFolder+="\\"
-        else:
-            dataFolder+="/"
-        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
-        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
-        return dataFolder   
-    elif "BITMESSAGE_HOME" in environ:
+    import appdirs
+    workingdir = appdirs.user_data_dir("MarketTracker", "BitBay")
+    if "BITMESSAGE_HOME" in environ:
         dataFolder = environ["BITMESSAGE_HOME"]
         if dataFolder[-1] not in [os.path.sep, os.path.altsep]:
             dataFolder += os.path.sep
