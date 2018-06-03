@@ -36,7 +36,7 @@ if __name__ == '__main__':
     os.environ["BITMESSAGE_HOME"] = datadir_path
 
     import class_api as class_api
-    api = class_api.getAPI(workingdir=datadir_path, silent=True)
+    api = class_api.getAPI(silent=True)
 
     import logging
     logger = logging.getLogger('class_api')
