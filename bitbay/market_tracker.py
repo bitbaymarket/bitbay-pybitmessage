@@ -28,8 +28,12 @@ if __name__ == '__main__':
         else:
             raise
 
+    mysql_user = 'bitbay'
+    mysql_pass = '7D2NE3h0J1A'
+    mysql_db = 'bitbay_market_tracker'
+
     cnx = mysql.connector.connect(
-        user='root', password='d1a2t3a4', database='bitbay_market_tracker')
+        user=mysql_user, password=mysql_pass, database=mysql_db)
     cursor = cnx.cursor()
 
     os.environ['no_proxy'] = '127.0.0.1,localhost'
@@ -42,8 +46,10 @@ if __name__ == '__main__':
     logger = logging.getLogger('class_api')
 
     try:
+        secs = 0
         while True:
             time.sleep(1)
+            secs = secs + 1
             try:
                 logger.warning("Checking inbox...")
                 msgs = api.getAllInboxUnreadMessages()
@@ -68,7 +74,21 @@ if __name__ == '__main__':
 
             except:
                 traceback.print_exc()
-                logger.error(str("Checking/Thread Error"))
+                logger.error("Checking/Thread Error")
+
+            if secs > (15 * 60):
+                secs = 0
+                try:
+                    cursor.close()
+                    cnx.close()
+                except:
+                    traceback.print_exc()
+                    logger.error("Can not close cursor/connection")
+
+                cnx = mysql.connector.connect(
+                    user=mysql_user, password=mysql_pass, database=mysql_db)
+                cursor = cnx.cursor()
+
     except KeyboardInterrupt:
         logger.warning("Closing market tracker...")
         sys.exit()
