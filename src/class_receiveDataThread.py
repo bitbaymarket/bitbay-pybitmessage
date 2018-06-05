@@ -179,7 +179,7 @@ class receiveDataThread(threading.Thread):
                 elif command == 'object':
                     self.recobject(payload)
                 elif command == 'ping':
-                    self.sendpong(payload)
+                    self.sendpong()
                 #elif command == 'pong':
                 #    pass
         except varintDecodeError as e:
@@ -479,7 +479,7 @@ class receiveDataThread(threading.Thread):
                         payload, = row
                     self.sendObject(payload)
                 else:
-                    logger.warning('%s asked for an object with a getdata which is not in either our memory inventory or our SQL inventory. We probably cleaned it out after advertising it but before they got around to asking for it.' % self.peer)
+                    logger.info('%s asked for an object with a getdata which is not in either our memory inventory or our SQL inventory. We probably cleaned it out after advertising it but before they got around to asking for it.' % str(self.peer))
 
     # Our peer has requested (in a getdata message) that we send an object.
     def sendObject(self, payload):
