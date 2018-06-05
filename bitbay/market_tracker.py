@@ -51,9 +51,10 @@ if __name__ == '__main__':
             time.sleep(1)
             secs = secs + 1
             try:
-                logger.warning("Checking inbox...")
+                #logger.warning("Checking inbox...")
                 msgs = api.getAllInboxUnreadMessages()
-                logger.warning(json.dumps(msgs))
+                if len(msgs)>0:
+                    logger.warning(json.dumps(msgs, indent=2, sort_keys=True))
 
                 for msg in msgs:
                     ins_msg = ("INSERT INTO bm_inbox "
@@ -63,7 +64,7 @@ if __name__ == '__main__':
                     msg_json = ""
                     try:
                         msg_data = ast.literal_eval(msg["message"])
-                        msg_json = json.dumps(msg_data)
+                        msg_json = json.dumps(msg_data, indent=2, sort_keys=True)
                     except:
                         pass
                     msg["message_json"] = msg_json
