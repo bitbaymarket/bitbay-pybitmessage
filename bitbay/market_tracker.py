@@ -45,51 +45,61 @@ if __name__ == '__main__':
     import logging
     logger = logging.getLogger('class_api')
 
+secs = 0
+while True:
+    time.sleep(1)
+    secs = secs + 1
     try:
-        secs = 0
-        while True:
-            time.sleep(1)
-            secs = secs + 1
+        # logger.warning("Checking inbox...")
+        msgs = api.getAllInboxUnreadMessages()
+        if len(msgs) > 0:
+            logger.warning(json.dumps(msgs, indent=2, sort_keys=True))
+
+        for msg in msgs:
+            ins_msg = ("INSERT INTO bm_inbox "
+                       "(msgid, receivedTime, encodingType, toAddress, fromAddress, subject, message) "
+                       "VALUES (%(msgid)s, %(receivedTime)s, %(encodingType)s, %(toAddress)s, %(fromAddress)s, %(subject)s, %(message_json)s)")
+
+            msg_json = ""
             try:
-                #logger.warning("Checking inbox...")
-                msgs = api.getAllInboxUnreadMessages()
-                if len(msgs)>0:
-                    logger.warning(json.dumps(msgs, indent=2, sort_keys=True))
-
-                for msg in msgs:
-                    ins_msg = ("INSERT INTO bm_inbox "
-                               "(msgid, receivedTime, encodingType, toAddress, fromAddress, subject, message) "
-                               "VALUES (%(msgid)s, %(receivedTime)s, %(encodingType)s, %(toAddress)s, %(fromAddress)s, %(subject)s, %(message_json)s)")
-
-                    msg_json = ""
-                    try:
-                        msg_data = ast.literal_eval(msg["message"])
-                        msg_json = json.dumps(msg_data, indent=2, sort_keys=True)
-                    except:
-                        pass
-                    msg["message_json"] = msg_json
-                    cursor.execute(ins_msg, msg)
-                    cnx.commit()
-
-                    api.markInboxMessageAsRead(msg["msgid"])
-
+                msg_data = ast.literal_eval(msg["message"])
+                msg_json = json.dumps(msg_data, indent=2, sort_keys=True)
             except:
-                traceback.print_exc()
-                logger.error("Checking/Thread Error")
+                pass
+            msg["message_json"] = msg_json
+            cursor.execute(ins_msg, msg)
+            cnx.commit()
 
-            if secs > (15 * 60):
-                secs = 0
-                try:
-                    cursor.close()
-                    cnx.close()
-                except:
-                    traceback.print_exc()
-                    logger.error("Can not close cursor/connection")
+            api.markInboxMessageAsRead(msg["msgid"])
 
-                cnx = mysql.connector.connect(
-                    user=mysql_user, password=mysql_pass, database=mysql_db)
-                cursor = cnx.cursor()
+    except:
+        traceback.print_exc()
+        logger.error("Checking/Thread Error")
 
-    except KeyboardInterrupt:
-        logger.warning("Closing market tracker...")
-        sys.exit()
+    if secs % (15 * 60) == 0:
+        try:
+            cursor.close()
+            cnx.close()
+        except:
+            traceback.print_exc()
+            logger.error("Can not close cursor/connection")
+
+        cnx = mysql.connector.connect(
+            user=mysql_user, password=mysql_pass, database=mysql_db)
+        cursor = cnx.cursor()
+
+    if secs % 10 == 0:
+        logger.warning("secs: %d" % secs)
+
+    if secs % (91 * 60) == 0:
+        try:
+            cursor.close()
+            cnx.close()
+        except:
+            traceback.print_exc()
+            logger.error("Can not close cursor/connection")
+        logger.warning("About to restart bitmessage")
+        api.stop()
+        time.sleep(60)
+        os._exit(0)
+
