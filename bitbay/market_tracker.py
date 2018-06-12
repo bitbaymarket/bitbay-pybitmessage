@@ -63,9 +63,18 @@ while True:
             msg_json = ""
             try:
                 msg_data = ast.literal_eval(msg["message"])
+            except:
+                msg_data = {}
+                msg_data["Error"] = "Can not parse"
+                try:
+		    msg_data["Message"] = msg["message"]
+                except:
+                    pass
+            try:
                 msg_json = json.dumps(msg_data, indent=2, sort_keys=True)
             except:
                 pass
+
             msg["message_json"] = msg_json
             cursor.execute(ins_msg, msg)
             cnx.commit()
