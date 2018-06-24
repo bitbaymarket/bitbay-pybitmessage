@@ -626,10 +626,16 @@ class singleWorker(threading.Thread, StoppableThread):
             
             # At this point we know that we have the necessary pubkey in the pubkeys table.
             
-            TTL *= 2**retryNumber
-            if TTL > 28 * 24 * 60 * 60:
-                TTL = 28 * 24 * 60 * 60
-            TTL = int(TTL + random.randrange(-300, 300))# add some randomness to the TTL
+            ## standard bitmessage logic:
+            #TTL *= 2**retryNumber
+            #if TTL > 28 * 24 * 60 * 60:
+            #    TTL = 28 * 24 * 60 * 60
+            #TTL = int(TTL + random.randrange(-300, 300))# add some randomness to the TTL
+
+            ## bitbay logic:
+            # Instead of risking message loss, we wait 3 hours after expiry and send again
+            TTL += 3 * 60 * 60
+
             embeddedTime = int(time.time() + TTL)
             
             if not BMConfigParser().has_section(toaddress): # if we aren't sending this to ourselves or a chan
