@@ -1,6 +1,7 @@
 from os import environ, path
 import sys
 import re
+import os
 from datetime import datetime
 
 # When using py2exe or py2app, the variable frozen is added to the sys
@@ -21,7 +22,7 @@ def lookupExeFolder():
         exeFolder = ''
     return exeFolder
 
-def lookupAppdataFolder():
+def lookupAppdataFolder_orig():
     APPNAME = "PyBitmessage"
     if "BITMESSAGE_HOME" in environ:
         dataFolder = environ["BITMESSAGE_HOME"]
@@ -30,6 +31,96 @@ def lookupAppdataFolder():
     elif sys.platform == 'darwin':
         if "HOME" in environ:
             dataFolder = path.join(environ["HOME"], "Library/Application Support/", APPNAME) + '/'
+        else:
+            stringToLog = 'Could not find home folder, please report this message and your OS X version to the BitMessage Github.'
+            if 'logger' in globals():
+                logger.critical(stringToLog)
+            else:
+                print stringToLog
+            sys.exit()
+
+    elif 'win32' in sys.platform or 'win64' in sys.platform:
+        dataFolder = path.join(environ['APPDATA'].decode(sys.getfilesystemencoding(), 'ignore'), APPNAME) + path.sep
+    else:
+        from shutil import move
+        try:
+            dataFolder = path.join(environ["XDG_CONFIG_HOME"], APPNAME)
+        except KeyError:
+            dataFolder = path.join(environ["HOME"], ".config", APPNAME)
+
+        # Migrate existing data to the proper location if this is an existing install
+        try:
+            move(path.join(environ["HOME"], ".%s" % APPNAME), dataFolder)
+            stringToLog = "Moving data folder to %s" % (dataFolder)
+            if 'logger' in globals():
+                logger.info(stringToLog)
+            else:
+                print stringToLog
+        except IOError:
+            # Old directory may not exist.
+            pass
+        dataFolder = dataFolder + '/'
+    return dataFolder
+
+def lookupAppdataFolder():
+    APPNAME = "BitMData"
+    try:
+        sysdir=""
+        argdir=""
+        for arg in sys.argv:
+            if "path=" in arg:
+                sysdir=arg
+            if "bitbay" in arg.lower() or "bithalo" in arg.lower() or "blackhalo" in arg.lower():
+                argdir=arg
+    except:
+        pass
+    workingdir=""
+    if workingdir!="":
+        dataFolder=workingdir+APPNAME
+        if os.name == 'nt':
+            dataFolder+="\\"
+        else:
+            dataFolder+="/"
+        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
+        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
+        return dataFolder
+    elif sysdir!="":
+        if os.name == 'nt':
+            dataFolder=sysdir+"\\"+APPNAME+"\\"
+        else:
+            dataFolder=sysdir+"/"+APPNAME+"/"
+        dataFolder=dataFolder.replace("path=","")
+        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
+        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
+        return dataFolder
+    elif argdir!="":
+        dataFolder=argdir
+        dataFolder=dataFolder.replace("python ","")
+        dataFolder=dataFolder.replace("python2.7 ","")
+        dataFolder=dataFolder.replace("BitMHalo.py","")
+        dataFolder=dataFolder.replace("BitMHalo.exe","")
+        dataFolder=dataFolder.replace("BitMHalo","")
+        dataFolder=dataFolder.replace("bitmessagemain.exe","")
+        dataFolder=dataFolder.replace("bitmessagemain.py","")
+        dataFolder+=APPNAME
+        if os.name != "nt":
+            if dataFolder=="":
+                dataFolder+="./"
+            dataFolder=dataFolder.replace("//","/")
+        if os.name == 'nt':
+            dataFolder+="\\"
+        else:
+            dataFolder+="/"
+        sys.stderr.write("\n\nData Directory: " + str(dataFolder)+"\n\n")
+        if not os.path.exists(dataFolder): os.mkdir(dataFolder)
+        return dataFolder
+    elif "BITMESSAGE_HOME" in environ:
+        dataFolder = environ["BITMESSAGE_HOME"]
+        if dataFolder[-1] not in [os.path.sep, os.path.altsep]:
+            dataFolder += os.path.sep
+    elif sys.platform == 'darwin':
+        if "HOME" in environ:
+            dataFolder = path.join(os.environ["HOME"], "Library/Application Support/", APPNAME) + '/'
         else:
             stringToLog = 'Could not find home folder, please report this message and your OS X version to the BitMessage Github.'
             if 'logger' in globals():
