@@ -1,0 +1,28 @@
+version: '{build}'
+image: Visual Studio 2015
+
+install:
+  - set PATH_ORIG=%PATH%
+build_script:
+  - set REPOL=https://github.com/bitbaymarket/bitbay-prebuilt-libs1
+  - set BASE2=%REPOL%/releases/download/base2
+  - set BITMHALOPATH=%cd%
+  - ls
+  - python --version
+  - pip install pyinstaller
+  - pip install pyzmail
+  - pip install stopit
+  - pip install password
+  - pip install pycrypto
+  - pip install appdirs
+  - curl -fsSL -o PyQt4-4.11.4-cp27-cp27m-win32.whl %BASE2%/PyQt4-4.11.4-cp27-cp27m-win32.whl
+  - pip install PyQt4-4.11.4-cp27-cp27m-win32.whl
+  - pyinstaller bitbay/BitMHalo.py -F -p src --icon=bitbay/BitMHalo.ico --uac-admin
+  - move dist\BitMHalo.exe .
+  - 7z a bitmhalo_win.zip BitMHalo.exe
+
+test: off
+
+artifacts:
+  - path: bitmhalo_win.zip
+    name: bitmhalo_win.zip
