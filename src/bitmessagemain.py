@@ -198,10 +198,10 @@ if shared.useVeryEasyProofOfWorkForTesting:
         defaults.networkDefaultPayloadLengthExtraBytes / 100)
 
 class Main:
-    def start(self):
+    def start(self, daemon=True):
         _fixSocket()
 
-        daemon = BMConfigParser().safeGetBoolean('bitmessagesettings', 'daemon')
+        #daemon = BMConfigParser().safeGetBoolean('bitmessagesettings', 'daemon')
 
         try:
             opts, args = getopt.getopt(sys.argv[1:], "hcd",
@@ -223,10 +223,10 @@ class Main:
         # is the application already running?  If yes then exit.
         shared.thisapp = singleinstance("", daemon)
 
-        if daemon:
-            with shared.printLock:
-                print('Running as a daemon. Send TERM signal to end.')
-            self.daemonize()
+        #if daemon:
+        #    with shared.printLock:
+        #        print('Running as a daemon. Send TERM signal to end.')
+        #    self.daemonize()
 
         self.setSignalHandler()
 
@@ -340,6 +340,7 @@ class Main:
         else:
             BMConfigParser().remove_option('bitmessagesettings', 'dontconnect')
 
+        return
         if daemon:
             while state.shutdown == 0:
                 sleep(1)
