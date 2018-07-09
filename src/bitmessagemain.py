@@ -429,7 +429,7 @@ All parameters are optional.
 
 def main():
     mainprogram = Main()
-    mainprogram.start()
+    mainprogram.start(daemon=False)
 
 if __name__ == "__main__":
     main()

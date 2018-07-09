@@ -1,5 +1,7 @@
 
-import sys, os, inspect, re
+import sys
+sys.frozen = False
+import os
 from logging import Logger
 
 app_dir = os.path.dirname(os.path.abspath(__file__))+'/../src'
@@ -18,112 +20,97 @@ import ast
 import platform
 import appdirs
 import errno
-if os.name == 'nt':
-    import msvcrt as m
-else:
-    import curses as m
-import imaplib
-import smtplib
-import email
-import quopri
-import base64
-import pyzmail
-from highlevelcrypto import *
 import traceback
-import re
-import stopit
 import xmlrpclib
 import password
-from email.parser import HeaderParser
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 import logging
 
-#########################################
-providers=[{'@gmail': {'imap':'imap.googlemail.com','smtp':'smtp.googlemail.com','port':587,'SSL':0}},{'@hotmail':{'imap':'imap-mail.outlook.com','smtp':'smtp-mail.outlook.com','port':587,'SSL':0}}, {'@outlook':{'imap':'imap-mail.outlook.com','smtp':'smtp-mail.outlook.com','port':587,'SSL':0}},{'@aol.com':{'imap':'imap.aol.com','smtp':'smtp.aol.com','port':587,'SSL':0}}]#Mail.com support removed. They now charge for imap/smtp {'@mail':{'imap':'imap.mail.com','smtp':'smtp.mail.com','port':587,'SSL':0}}
-imapname = 'imap.googlemail.com'
-smtpname = 'smtp.googlemail.com'
-port=587
-isSSL=0
-username = ''
-EmailPassword = ''
-readmessages=[]
-prevaccount=""
-timeresult=False
-typ=""
-msg_data=""
-connection=""
-global mypassword
-mypassword=""
-global systemexit
-systemexit=0
-global lockTHIS
-lockTHIS=0
+import BitMHalo_email as email_support
+from BitMHalo_shared import shared
+
+email_password = ''
+
+readmessages = []
+prevaccount = ""
+typ = ""
+msg_data = ""
+connection = ""
+
 #print txhash(open("blackhalo2.py", 'rb').read())
 #########################################
+
 from PyQt4.QtCore import QThread
+from PyQt4.QtCore import QCoreApplication
 import threading
 
-import helper_startup
-logger = logging.getLogger('console')  # type: Logger
+logger = logging.getLogger('both')  # type: Logger
 
 os.environ['no_proxy'] = '127.0.0.1,localhost'
+
+
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ('/RPC2',)
-class RPCThread(QThread): #threading.Thread
+
+
+class RPCThread(QThread):  # threading.Thread
     def __init__(self, url):
-        QThread.__init__(self)#super(RPCThread, self).__init__()
-        self.url=url
+        QThread.__init__(self)  # super(RPCThread, self).__init__()
+        self.url = url
 
     # Register an instance; all the methods of the instance are
     # published as XML-RPC methods (in this case, just 'div').
     class MyFuncs:
         def ExitBitmessage(self, passw):
-            global systemexit
             logger.warning(str("bitmhalo: Closing Bitmessage..."))
-            #if passw=='password'
+            # if passw=='password'
             try:
-                api.stop()
+                shared.bm_api.stop()
             except:
                 traceback.print_exc()
-            systemexit=1
+            shared.systemexit = 1
             return True
+
         def StorePassword(self, password1, passw):
-            global mypassword
-            #To prevent sending mail loss, we only use this for retreiving mail
-            mypassword=password1
+            # To prevent sending mail loss, we only use this for retreiving mail
+            shared.mypassword = password1
             return True
+
         def FileLock(self, islocked):
-            global lockTHIS
-            if islocked=="0":#Checking
-                if lockTHIS==1:
+            if islocked == "0":  # Checking
+                if shared.lockTHIS == 1:
                     return False
                 else:
                     return True
-            if islocked=="1":
-                lockTHIS=2
+            if islocked == "1":
+                shared.lockTHIS = 2
                 return True
             else:
-                lockTHIS=0
+                shared.lockTHIS = 0
                 return True
+
     def run(self):
         # Create server
-        server = SimpleXMLRPCServer(("localhost", 8878),requestHandler=RequestHandler, logRequests = False)
+        server = SimpleXMLRPCServer(
+            ("localhost", 8878), requestHandler=RequestHandler, logRequests=False)
         server.register_introspection_functions()
-        #Register functions
+        # Register functions
         server.register_instance(self.MyFuncs())
         # Run the server's main loop
         return server.serve_forever()
-bitmrpc=RPCThread("RPC")
+
+
+bitmrpc = RPCThread("RPC")
 bitmrpc.start()
 
 def waitlock():
-    global lockTHIS
-    count=0
-    while count<300 and lockTHIS==2:
+    count = 0
+    while count < 300 and shared.lockTHIS == 2:
         time.sleep(.1)
-        count+=1
-    lockTHIS=0
+        count += 1
+    shared.lockTHIS = 0
+
 
 def getPythonFileLocation():
     """  returns the location of where the python file is located """
@@ -135,802 +122,500 @@ def getPythonFileLocation():
         return os.path.dirname(os.getcwd())
     else:
         from inspect import getsourcefile
-        return os.path.dirname(os.path.abspath(getsourcefile(lambda _:None)))
-application_path=getPythonFileLocation()
+        return os.path.dirname(os.path.abspath(getsourcefile(lambda _: None)))
 
-list_response_pattern = re.compile(r'\((?P<flags>.*?)\) "(?P<delimiter>.*)" (?P<name>.*)')
-def parse_list_response(line):
-    flags, delimiter, mailbox_name = list_response_pattern.match(line).groups()
-    mailbox_name = mailbox_name.strip('"')
-    return (flags, delimiter, mailbox_name)
 
-if __name__ ==  '__main__':
-    #extractor = parallelTestModule.ParallelExtractor()
-    #extractor.runInParallel(numProcesses=1, numThreads=1)#EDIT:Was two processes is now one
-    path1=sys.argv[0]
-    os.environ['no_proxy'] = '127.0.0.1,localhost'
-    myrpc = xmlrpclib.ServerProxy('http://127.0.0.1:8877')
-    application_path=path1
-    application_path=application_path.replace("python ","")
-    application_path=application_path.replace("python2.7 ","")
-    application_path=application_path.replace("BitMHalo.py","")
-    application_path=application_path.replace("BitMHalo.exe","")
-    application_path=application_path.replace("BitMHalo","")
+application_path = getPythonFileLocation()
+
+
+def cmd_remove_channel(str_data):
+    # Make a new channel address and return it
+    data = ast.literal_eval(str_data)
+    try:
+        waitlock()
+        shared.lockTHIS = 1
+        with open(shared.bittmp_path, 'w') as f:
+            try:
+                addr = shared.bm_api.deleteChannel(data['Address'])
+                if addr:
+                    addr = "Success"
+                else:
+                    addr = "Failed"
+            except:
+                traceback.print_exc()
+                addr = "Exception"
+            f.write("1" + "\n")
+            f.write("remchan" + "\n")
+            f.write(addr + "\n")
+            f.write(data['Address'] + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+            f.close()
+        shared.lockTHIS = 0
+    except:
+        shared.lockTHIS = 0
+        logger.error("bitmhalo: remove channel: %s" % traceback.format_exc())
+
+
+def cmd_add_channel(str_data):
+    # Make a new channel address and return it
+    data = ast.literal_eval(str_data)
+    try:
+        waitlock()
+        shared.lockTHIS = 1
+        with open(shared.bittmp_path, 'w') as f:
+            try:
+                addr = shared.bm_api.joinChannel(data['Address'])
+            except:
+                try:
+                    addrdata = shared.bm_api.listAddressBook()
+                    for add in addrdata:
+                        if add['label'] == "[chan] " + data['Address']:
+                            addr = add['address']
+                            break
+                except:
+                    addr = "Exception"
+            f.write("1" + "\n")
+            f.write("chan1" + "\n")
+            f.write(addr + "\n")
+            f.write(data['Address'] + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+            f.close()
+        shared.lockTHIS = 0
+    except:
+        shared.lockTHIS = 0
+        logger.error("bitmhalo: add channel: %s" % traceback.format_exc())
+
+
+def cmd_new_address(str_data):
+    # Make a new address and return it
+    data = ast.literal_eval(str_data)
+    try:
+        waitlock()
+        shared.lockTHIS = 1
+        with open(shared.bittmp_path, 'w') as f:
+            if data["Pubs"] == []:
+                addr = shared.bm_api.createRandomAddress("BitHalo")
+            else:
+                key = str(data['Pubs'][0])
+                key2 = str(data['Pubs'][1])
+                addr = shared.bm_api.createDeterministicAddresses(
+                    str(key[:14] + key2[-14:]), "BitHalo")
+                try:
+                    addr = addr[0]
+                except:
+                    try:
+                        addr = shared.bm_api.getDeterministicAddress(
+                            str(key[:14] + key2[-14:]))
+                    except:
+                        addr = " "
+                addr2 = shared.bm_api.createDeterministicAddresses(
+                    str(key2[:14] + key[-14:]), "BitHalo")
+                logger.warning("addr: " + str(addr))
+            f.write("1" + "\n")
+            f.write("new1" + "\n")
+            f.write(addr + "\n")
+            f.write(data["multisig"] + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+            f.close()
+        shared.lockTHIS = 0
+    except:
+        shared.lockTHIS = 0
+        logger.error("bitmhalo: new address: %s" % traceback.format_exc())
+
+
+def cmd_send(str_data, data3):
+    original = str_data
+    is_email, from_address = email_support.is_email(str_data)
+    verified, imap_name, smtp_name, port, is_ssl = email_support.is_email_provider_supported(
+        from_address)
+    ret = True
+    if is_email and verified:
+        from_address, to_address, content, email_password = email_support.exctract_email_data(
+            str_data)
+        ret = email_support.send_email(
+            email_password, content, from_address, to_address, smtp_name, port)
+        # It failed lets write it to an outbox...
+        # We could also try repeating until solved.
+        # Reporting an email fail via api.
+        if ret == False:
+            outbox = []
+            try:
+                with open(shared.outbox_path, 'r') as f:
+                    outbox = f.readline().strip()
+                    outbox = ast.literal_eval(outbox)
+                    f.close()
+            except Exception, e:
+                pass
+            try:
+                if str(original) not in outbox:
+                    outbox.append(str(original))
+                with open(shared.outbox_path, 'w') as f:
+                    f.write(str(outbox))
+                    f.flush()
+                    os.fsync(f.fileno())
+                    f.close()
+            except:
+                logger.error("bitmhalo: file: %s, %s" %
+                             (shared.outbox_path, traceback.format_exc()))
+            ret = "False" + str(str_data)
+    else:
+        content = ast.literal_eval(str_data)
+        from_address = content['MyBMAddress']
+        to_address = content['TheirBMAddress']
+
+        logger.info("bitmhalo: about to send: %s" % str(content))
+        try:
+            ret = shared.bm_api.sendMessage(from_address, to_address,
+                                  "BitHalo", str(content))
+        except Exception, e:
+            logger.error("bitmhalo: bm send: %s, %s" %
+                         (str(e), traceback.format_exc()))
+            ret = "False" + str(content)
+    try:
+        waitlock()
+        shared.lockTHIS = 1
+        with open(shared.bittmp_path, 'w') as f:
+            f.write("1" + "\n")
+            f.write("Send1" + "\n")
+            f.write(str(ret) + "\n")
+            f.write(str(data3) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+            f.close()
+        shared.lockTHIS = 0
+    except:
+        shared.lockTHIS = 0
+        logger.error("bitmhalo: file: %s, %s" % (shared.bittmp_path, traceback.format_exc()))
+
+
+def cmd_clean_inbox(cmd, str_data):
+    data = ast.literal_eval(str_data)
+
+    try:
+        inbox_messages = shared.bm_api.getAllInboxMessages()
+    except Exception, e:
+        logger.error("bitmhalo: getAllInboxMessages: %s %s" %
+                     (str(e), traceback.format_exc()))
+        inbox_messages = []
+
+    try:
+        msgids = shared.bm_api.getAllInboxMessageIDs()
+        data['Address'] = data['Bitmessage Address']
+        sent_messages = shared.bm_api.getSentMessagesBySender(data['Address'])
+
+        # Clear Sent symbolizes we have no open contracts to worry about message loss
+        if 'Clear Sent' in data:
+            for msg_id in shared.bm_api.getAllSentMessageIDs():
+                message = shared.bm_api.getSentMessageByID(msg_id)
+                if message[0]['fromAddress'] == data['Bitmessage Address']:
+                    if 'msgsent' in message[0]['status'] or 'ackreceived' in message[0]['status']:
+                        shared.bm_api.trashSentMessage(msg_id)
+
+        for msg_id in msgids:
+            message = shared.bm_api.getInboxMessageByID(msg_id)
+            if message[0]['toAddress'] == data['Bitmessage Address'] and 'Clear Sent' in data:
+                shared.bm_api.trashInboxMessage(msg_id)
+            if message[0]['toAddress'] in data['MyMarkets']:
+                # Market orders are more expendable
+                shared.bm_api.trashInboxMessage(msg_id)
+    except:
+        sent_messages = "False"
+        logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
+
+    try:
+        status = shared.bm_api.clientStatus()
+    except:
+        logger.error("bitmhalo: status: %s" % traceback.format_exc())
+        status = ""
+
+    try:
+        waitlock()
+        shared.lockTHIS = 1
+        with open(shared.bittmp_path, 'w') as f:
+            f.write("1" + "\n")
+            f.write(cmd + "1:" + str(status) + "\n")
+            f.write(str(inbox_messages) + "\n")
+            f.write(str(sent_messages) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+            f.close()
+        shared.lockTHIS = 0
+    except Exception, e:
+        shared.lockTHIS = 0
+        logger.error("bitmhalo: open: %s, %s" % (shared.bittmp_path, traceback.format_exc()))
+
+
+def get_datadir_path():
+    path1 = sys.argv[0]
+    application_path = path1
+    application_path = application_path.replace("python ", "")
+    application_path = application_path.replace("python2.7 ", "")
+    application_path = application_path.replace("BitMHalo.py", "")
+    application_path = application_path.replace("BitMHalo.exe", "")
+    application_path = application_path.replace("BitMHalo", "")
     if os.name != "nt":
-        if application_path=="":
-            application_path+="./"
-        application_path=application_path.replace("//","/")
+        if application_path == "":
+            application_path += "./"
+        application_path = application_path.replace("//", "/")
     logger.warning("BITMHALO PATH: "+application_path)
     datadir_path = application_path
-    if platform.system()=="Darwin":
+    if platform.system() == "Darwin":
         datadir_path = appdirs.user_data_dir("BitBayClient", "BitBay")
-        try: os.makedirs(datadir_path)
+        try:
+            os.makedirs(datadir_path)
         except OSError as exc:
-            if exc.errno == errno.EEXIST and os.path.isdir(datadir_path): pass
-            else: raise
-    os.environ["BITMESSAGE_HOME"]=datadir_path
-    api = class_api.getAPI(workingdir=datadir_path, silent=False)
-    ch=""
-    path=os.path.join(datadir_path,"BitTMP.dat")
-    outpath=os.path.join(datadir_path,"Outbox.dat")
-    mailpath=os.path.join(datadir_path,"MailCache.dat")
-    data=[]
-    data.append("0")
-    data.append("0")
-    data.append("0")
-    data.append("0")
-    data.append("0")
-    data.append("0")
-    data.append("0")
-    with open(outpath,'a+') as f:
+            if exc.errno == errno.EEXIST and os.path.isdir(datadir_path):
+                pass
+            else:
+                raise
+    for arg in sys.argv:
+        if "path=" in arg:
+            datadir_path = arg
+            if os.name == 'nt':
+                datadir_path = sysdir + "\\"
+            else:
+                datadir_path = sysdir + "/"
+            datadir_path = datadir_path.replace("path=", "")
+            break
+
+    return datadir_path
+
+def init():
+    datadir_path = get_datadir_path()
+    os.environ['no_proxy'] = '127.0.0.1,localhost'
+    os.environ["BITMESSAGE_HOME"] = datadir_path
+    logger.warning("BITMESSAGE_HOME: "+datadir_path)
+    shared.bittmp_path = os.path.join(datadir_path, "BitTMP.dat")
+    shared.outbox_path = os.path.join(datadir_path, "Outbox.dat")
+    shared.mailcache_path = os.path.join(datadir_path, "MailCache.dat")
+
+    with open(shared.outbox_path, 'a+') as f:
         f.close()
-    if os.stat(outpath)[6]==0:
-        with open(outpath,'w') as f:
+
+    if os.stat(shared.outbox_path)[6] == 0:
+        with open(shared.outbox_path, 'w') as f:
             f.write("[]")
             f.flush()
-            os.fsync(f)
+            os.fsync(f.fileno())
             f.close()
-    with open(mailpath,'a+') as f:
+
+    with open(shared.mailcache_path, 'a+') as f:
         f.close()
-    if os.stat(mailpath)[6]==0:
-        with open(mailpath,'w') as f:
+
+    if os.stat(shared.mailcache_path)[6] == 0:
+        with open(shared.mailcache_path, 'w') as f:
             f.write("{}")
             f.flush()
-            os.fsync(f)
+            os.fsync(f.fileno())
             f.close()
-    ticker=0
-    ticker2=22
-    ticker3=0
-    while ch != "exit":
-        if systemexit==1:
-            systemexit=2
-            logger.warning(str("bitmhalo: Closing Bitmessage..."))
-            sys.exit()
-        time.sleep(0.23456)
-        ticker+=1 #We dont check email messages as compulsively not do we try resending outbox messages as compulsively
-        ticker2+=1
-        ticker3+=1
-        if ticker3>1000:
-            ticker3=0
-            readmessages=[]#We check read messages again after a while.
-        #logger.info("Ticker!!!! %i" % ticker)
-        if ticker==1000:
-            ticker=0
-            try:
-                with open(outpath,'r') as f:
-                    outbox=f.readline()
-                    f.close()
-                #Sends a message
-                pos=0
-                try:
-                    outbox=ast.literal_eval(outbox)
-                except:
-                    logger.error("bitmhalo: outbox: %s" % traceback.format_exc())
-                    outbox=[]
-                for data1 in outbox:#Lets try sending some of these messages again
-                    time.sleep(.1)
-                    next=1
-                    EmailPassword=""
-                    fromAddress=""
-                    if "ENCRYPTED:" in data1:
-                        if "PASSWORD:" in data1:
-                            matchObj = re.match( r'(PASSWORD:)(.*?)(MY:)', data1, re.M|re.I)
-                            EmailPassword=matchObj.group(2)
-                            data1=data1.replace("PASSWORD:"+EmailPassword,"")
-                        matchObj = re.match( r'(MY:)(.*?)(THEIR:)(.*?)(ENCRYPTED:)(.*?)(###)', data1, re.M|re.I)
-                        content=matchObj.group(5)+matchObj.group(6)
-                        fromAddress=matchObj.group(2)
-                        toAddress=matchObj.group(4)
-                    else:
-                        try:
-                            content=ast.literal_eval(data1)
-                            fromAddress=content['MyBMAddress']
-                            toAddress=content['TheirBMAddress']
-                            if 'password' in content:
-                                EmailPassword=content['password']
-                                content.pop("password", None)
-                        except:
-                            logger.error("bitmhalo: outbox parsing: %s" % traceback.format_exc())
-                            toAddress="####"
-                    verified=0
-                    for prov in providers:
-                        for key, val in prov.items():
-                            pass
-                        if key in fromAddress.lower():
-                            verified=1
-                            imapname = prov[key]['imap']
-                            smtpname = prov[key]['smtp']
-                            port = prov[key]['port']
-                            isSSL = prov[key]['SSL']
-                            break
-                    ret = True
-                    try:
-                        EmailPassword=password.DecryptWithAES("Halo Master", EmailPassword)
-                    except:
-                        logger.error("bitmhalo: password decryption: %s" % traceback.format_exc())
-                    if "@" in toAddress and verified==1:
-                        if "You have received a payment of " not in str(content) and "If you are new to Cryptocurrency, somebody may have sent you these coins" not in str(content):
-                            content="****"+str(content)+"****"
-                            attach=0
-                        else:
-                            attach=1
-                        if attach==0:
-                            try:
-                                connection = imaplib.IMAP4_SSL(imapname)
-                                connection.login(fromAddress, EmailPassword)
-                            except:
-                                logger.error("bitmhalo: imap login: %s" % traceback.format_exc())
-                                ret = False
-                        try:
-                            if attach==0:
-                                connection = smtplib.SMTP(smtpname, port)
-                                connection.ehlo()
-                                connection.starttls()
-                                headers = ["from: " + fromAddress, "subject: " + "Halo", "to: " + toAddress,"mime-version: 1.0","content-type: text/html"]
-                                headers = "\r\n".join(headers)
-                                connection.login(fromAddress, EmailPassword)
-                                connection.sendmail(fromAddress, toAddress, headers+"\r\n\r\n"+str(content))
-                                connection.close()
-                            else:
-                                b64=base64.b64decode(content['b64img'])
-                                text_content=unicode(content['Data'])
-                                html_content=u'<html><body>' + content['Data'] + \
-                                          '<img src="cid:doge" />.\n' \
-                                          '</body></html>'
-                                payload, mail_from, rcpt_to, msg_id=pyzmail.compose_mail(\
-                                    (unicode(fromAddress), fromAddress), \
-                                    [(unicode(toAddress), toAddress)], \
-                                    u'Halo', \
-                                    'iso-8859-1', \
-                                    (text_content, 'iso-8859-1'), \
-                                    (html_content, 'iso-8859-1'), \
-                                    embeddeds=[(b64, 'image', 'bmp', 'doge', None), ])
-                                ret=pyzmail.send_mail(payload, fromAddress, toAddress, smtpname, \
-                                    smtp_port=port, smtp_mode='tls', \
-                                    smtp_login=fromAddress, smtp_password=EmailPassword)
-                                if isinstance(ret, dict):
-                                    if ret:
-                                        float("A")
-                                    else:
-                                        pass
-                                else:
-                                    float("A")
-                        except Exception, e:
-                            logger.error("bitmhalo: smtp send: %s, %s" % (str(e), traceback.format_exc()))
-                            ret = False
-                    if ret != False or toAddress=="####":#We are not resending bitmessage at the moment
-                        outbox.pop(pos)
-                        next=0
-                        with open(outpath,'w') as f:
-                            f.write(str(outbox))
-                            f.flush()
-                            os.fsync(f)
-                            f.close()
-                    if next==1:
-                        pos+=1
-            except Exception, e:
-                traceback.print_exc()
+
+    shared.bm_api = class_api.getAPI(workingdir=datadir_path, silent=False)
+    shared.myrpc = xmlrpclib.ServerProxy('http://127.0.0.1:8877')
+
+class BMHaloApp(QCoreApplication):
+
+    def __init__(self, *argv):
+        super(BMHaloApp, self).__init__(*argv)
+        self.str_data_st = "0"
+        self.str_data_cmd = "0"
+        self.str_data_arg1 = "0"
+        self.str_data_arg2 = "0"
+        self.readInputTimerId = self.startTimer(234)
+        self.doCommandsTimerId = self.startTimer(468)
+        self.doMessagesTimerId = self.startTimer(5148)
+        self.resendEmailsTimerId = self.startTimer(234000)
+        self.refreshMessagesTimerId = self.startTimer(234000)
+
+    def timerEvent(self, te):
         try:
-            with open(path,'r') as f:
-                data[0]=f.readline().strip()
-                data[1]=f.readline().strip()
+            if shared.lockTHIS >0:
+                return
+            if te.timerId()==self.resendEmailsTimerId:
+                email_support.resend_pending_in_outbox(shared.outbox_path)
+            elif te.timerId() == self.refreshMessagesTimerId:
+                global readmessages
+                readmessages = []
+            elif te.timerId() == self.readInputTimerId:
+                self.read_input()
+            elif te.timerId() == self.doCommandsTimerId:
+                self.do_cmds()
+            elif te.timerId() == self.doMessagesTimerId:
+                self.do_get_messages()
+        except Exception, e:
+            logger.error("bitmhalo: timerEvent: %s %s" %
+                         (str(e), traceback.format_exc()))
+
+    def read_input(self):
+        try:
+            with open(shared.bittmp_path, 'r') as f:
+                self.str_data_st = f.readline().strip()
+                self.str_data_cmd = f.readline().strip()
                 try:
-                    data[2]=f.readline().strip()
+                    self.str_data_arg1 = f.readline().strip()
                 except:
-                    logger.error("bitmhalo: file: %s %s" % (path, traceback.format_exc()))
+                    logger.error("bitmhalo: file: %s %s" %
+                                 (shared.bittmp_path, traceback.format_exc()))
                 try:
-                    data[3]=f.readline().strip()
+                    self.str_data_arg2 = f.readline().strip()
                 except:
                     pass
                 f.close()
-        except Exception,e:
-            traceback.print_exc()
-        if data[0] == "0":
-            time.sleep(.23456)
-            try:
-                ch=data[1]
-                if ch == "Send":
-                    #Sends a message
-                    EmailPassword=""
-                    fromAddress=""
-                    original=data[2]
-                    if "ENCRYPTED:" in data[2]:
-                        try:
-                            if "PASSWORD:" in data[2]:
-                                matchObj = re.match( r'(PASSWORD:)(.*?)(MY:)', data[2], re.M|re.I)
-                                EmailPassword=matchObj.group(2)
-                                data[2]=data[2].replace("PASSWORD:"+EmailPassword,"")
-                            matchObj = re.match( r'(MY:)(.*?)(THEIR:)(.*?)(ENCRYPTED:)(.*?)(###)', data[2], re.M|re.I)
-                            content=matchObj.group(5)+matchObj.group(6)
-                            fromAddress=matchObj.group(2)
-                            toAddress=matchObj.group(4)
-                        except:
-                            logger.error("bitmhalo: encryption: %s" % traceback.format_exc())
-                    else:
-                        try:
-                            content=ast.literal_eval(data[2])
-                            fromAddress=content['MyBMAddress']
-                            toAddress=content['TheirBMAddress']
-                            if 'password' in content:
-                                EmailPassword=content['password']
-                                content.pop("password", None)
-                        except:
-                            logger.error("bitmhalo: parse: %s" % traceback.format_exc())
-                            toAddress=""
-                            content="####"
-                    verified=0
-                    for prov in providers:
-                        for key, val in prov.items():
-                            pass
-                        if key in fromAddress.lower():
-                            verified=1
-                            imapname = prov[key]['imap']
-                            smtpname = prov[key]['smtp']
-                            port = prov[key]['port']
-                            isSSL = prov[key]['SSL']
-                            break
-                    ret = True
-                    if "@" in toAddress and verified==1:
-                        try:
-                            EmailPassword = password.DecryptWithAES("Halo Master", EmailPassword)
-                        except:
-                            logger.error("bitmhalo: password aes decrypt: %s" % traceback.format_exc())
-                        if "You have received a payment of " not in str(content) and "If you are new to Cryptocurrency, somebody may have sent you these coins" not in str(content):
-                            attach=0
-                            content="****"+str(content)+"****"
-                        else:
-                            attach=1
-                        if attach==0:
-                            try:
-                                connection = imaplib.IMAP4_SSL(imapname)
-                                connection.login(fromAddress, EmailPassword)
-                            except:
-                                logger.error("bitmhalo: imap login: %s" % traceback.format_exc())
-                                ret = False
-                        try:
-                            if attach==0:
-                                connection = smtplib.SMTP(smtpname, port)
-                                connection.ehlo()
-                                connection.starttls()
-                                headers = ["from: " + fromAddress, "subject: " + "Halo", "to: " + toAddress,"mime-version: 1.0","content-type: text/html"]
-                                headers = "\r\n".join(headers)
-                                connection.login(fromAddress, EmailPassword)
-                                connection.sendmail(fromAddress, toAddress, headers+"\r\n\r\n"+str(content))
-                                connection.close()
-                            else:
-                                b64=base64.b64decode(content['b64img'])
-                                text_content=unicode(content['Data'])
-                                html_content=u'<html><body>' + content['Data'] + \
-                                          '<img src="cid:doge" />.\n' \
-                                          '</body></html>'
-                                payload, mail_from, rcpt_to, msg_id=pyzmail.compose_mail(\
-                                    (unicode(fromAddress), fromAddress), \
-                                    [(unicode(toAddress), toAddress)], \
-                                    u'Halo', \
-                                    'iso-8859-1', \
-                                    (text_content, 'iso-8859-1'), \
-                                    (html_content, 'iso-8859-1'), \
-                                    embeddeds=[(b64, 'image', 'bmp', 'doge', None), ])
-                                ret=pyzmail.send_mail(payload, fromAddress, toAddress, smtpname, \
-                                    smtp_port=port, smtp_mode='tls', \
-                                    smtp_login=fromAddress, smtp_password=EmailPassword)
-                                #For sending attachment: attachments=[(b64, 'image', 'bmp', 'image.bmp', None)
-                                if isinstance(ret, dict):
-                                    if ret:
-                                        float("A")
-                                    else:
-                                        pass
-                                else:
-                                    float("A")
-                                ret = True
-                        except Exception, e:
-                            logger.error("bitmhalo: smtp: %s, %s" % (str(e), traceback.format_exc()))
-                            ret = False
-                        if ret== False:#It failed lets write it to an outbox... We could also try repeating until solved. Reporting an email fail via api.
-                            outbox=[]
-                            try:
-                                with open(outpath,'r') as f:
-                                    outbox=f.readline().strip()
-                                    outbox=ast.literal_eval(outbox)
-                                    f.close()
-                            except Exception,e:
-                                pass
-                            try:
-                                if str(original) not in outbox:
-                                    outbox.append(str(original))
-                                with open(outpath,'w') as f:
-                                    f.write(str(outbox))
-                                    f.flush()
-                                    os.fsync(f)
-                                    f.close()
-                            except:
-                                logger.error("bitmhalo: file: %s, %s" % (outpath, traceback.format_exc()))
-                            ret="False"+str(data[2])
-                    else:
-                        logger.info("bitmhalo: about to send: %s" % str(content))
-                        try:
-                            ret = api.sendMessage(fromAddress,toAddress,"BitHalo",str(content))
-                        except Exception, e:
-                            logger.error("bitmhalo: bm send: %s, %s" % (str(e), traceback.format_exc()))
-                            ret = "False"+str(content)
-                    try:
-                        waitlock()
-                        lockTHIS=1
-                        with open(path,'w') as f:
-                            f.write("1"+"\n")
-                            f.write("Send1"+"\n")
-                            f.write(str(ret)+"\n")
-                            f.write(str(data[3])+"\n")
-                            f.flush()
-                            os.fsync(f)
-                            f.close()
-                        lockTHIS=0
-                    except:
-                        lockTHIS=0
-                        logger.error("bitmhalo: file: %s, %s" % (path, traceback.format_exc()))
-                if ch == "GetMessages" or ch == "Remove Order" or ch == "Clean Inbox":
-                    if ticker2>22:
-                        logger.info("bitmhalo: checking Inbox...")
-                        ticker2=0
-                        #Gets messages
-                        inbox=[]
-                        ret=""
-                        try:
-                            dat=ast.literal_eval(data[2])
-                            if 'Password' in dat:
-                                if dat['Password']=="#!#":
-                                    dat['Password']=mypassword
-                                try:
-                                    dat['Password']=password.DecryptWithAES("Halo Master", dat['Password'])
-                                except:
-                                    logger.error("bitmhalo: password aes decrypt: %s" % traceback.format_exc())
-                                verified=0
-                                for prov in providers:
-                                    for key, val in prov.items():
-                                        pass
-                                    if key in dat['Email Address'].lower():
-                                        verified=1
-                                        imapname = prov[key]['imap']
-                                        smtpname = prov[key]['smtp']
-                                        port = prov[key]['port']
-                                        isSSL = prov[key]['SSL']
-                                        break
-                                if verified==1:
-                                    try:
-                                        if dat['Email Address']!=prevaccount or ch == "Remove Order" or ch == "Clean Inbox":
-                                            readmessages=[]#reset on new accounts or maintenance
-                                            #For now we maintain the record of read messages on the client side
-                                        prevaccount=dat['Email Address']
-                                        connection = imaplib.IMAP4_SSL(imapname)
-                                        connection.login(dat['Email Address'], dat['Password'])
-                                        typ, mailbox_data = connection.list()
-                                        inbox = []
-                                        try:
-                                            with open(mailpath,'r') as f:
-                                                mailbox=f.readline()
-                                                f.close()
-                                            mailbox=ast.literal_eval(mailbox)
-                                            if mailbox=="":
-                                                float('a')
-                                            if dat['Email Address'] not in mailbox:
-                                                mailbox[dat['Email Address']]={}
-                                        except:
-                                            mailbox={str(dat['Email Address']):{}}
-                                        for line in mailbox_data:
-                                            try:
-                                                flags, delimiter, mailbox_name = parse_list_response(line)
-                                                if "sent" in mailbox_name.lower() or "all" in mailbox_name.lower() or "deleted" in mailbox_name.lower() or "trash" in mailbox_name.lower() or "drafts" in mailbox_name.lower():
-                                                    continue
-                                                if ch == "Remove Order":
-                                                    connection.select(mailbox_name)
-                                                else:
-                                                    connection.select(mailbox_name, readonly=True)
-                                                msg_ids1=set([])
-                                                try:
-                                                    typ, msg_ids1 = connection.uid('search', None, '(SUBJECT "Halo")')#connection.search(None, '(SUBJECT "Halo")')
-                                                except Exception, e:
-                                                    logger.error("bitmhalo: search: %s, %s" % (str(e), traceback.format_exc()))
-                                                    continue
-                                                msg_ids = msg_ids1[0]
-                                                try:
-                                                    msg_ids = msg_ids.split()
-                                                except:
-                                                    logger.error("bitmhalo: split: %s" % traceback.format_exc())
-                                                src=""
-                                                src1=""
-                                                mydict2={}
-                                                if 'uids' in dat:
-                                                    for elem in dat['uids']:
-                                                        try:
-                                                            ordnum=elem.split("#")[1]
-                                                            orduid=elem.split("#")[0]
-                                                            mydict2[orduid]=ordnum
-                                                        except:
-                                                            mydict2[elem]=''
-                                                for msg_id in msg_ids:
-                                                    if 'uids' in dat:#If they ask to skip any messages we do so
-                                                        if msg_id in mydict2:
-                                                            if 'ordernumber' in dat:
-                                                                if dat['ordernumber']==mydict2[msg_id]:
-                                                                    pass
-                                                                else:
-                                                                    continue
-                                                            else:
-                                                                continue
-                                                    logger.info("bitmhalo: msg_id: "+str(msg_id))
-                                                    mymessage={}
-                                                    if msg_id in mailbox[str(dat['Email Address'])]:
-                                                        try:
-                                                            mymessage['toAddress']=mailbox[str(dat['Email Address'])][msg_id]['toAddress']
-                                                            mymessage['fromAddress']=mailbox[str(dat['Email Address'])][msg_id]['fromAddress']
-                                                            mymessage['body']=mailbox[str(dat['Email Address'])][msg_id]['body']
-                                                            mymessage['uid']=mailbox[str(dat['Email Address'])][msg_id]['uid']
-                                                            body=mymessage['body']
-                                                        except:
-                                                            body=""
-                                                            mymessage={}
-                                                            logger.error("bitmhalo: message read: %s" % traceback.format_exc())
-                                                    else:
-                                                        try:
-                                                            if systemexit==1:#Attempt a clean exit when possible
-                                                                systemexit=2
-                                                                logger.warning("bitmhalo: closing...")
-                                                                sys.exit()
-                                                            logger.debug("bitmhalo: fetching...")
-                                                            #This is to prevent dropped connections, for now only on fetching
-                                                            timeresult = False
-                                                            try:#Let Halo know through RPC we started to download
-                                                                myrpc.MessageStatus("1","password")
-                                                            except Exception, e:
-                                                                pass
-                                                            @stopit.threading_timeoutable(timeout_param='my_timeout')
-                                                            def timethis():#If we get dropped, we can time out
-                                                                global timeresult, typ, msg_data, connection
-                                                                typ, msg_data = connection.uid('fetch', msg_id, '(RFC822)') #connection.fetch(msg_id, '(RFC822)')
-                                                                timeresult = True
-                                                            timethis(my_timeout=600)#10 minutes is very generous
-                                                            if timeresult==False:
-                                                                float("A")
-                                                            try:#Let Halo know through RPC we finished
-                                                                myrpc.MessageStatus("0","password")
-                                                            except Exception, e:
-                                                                pass
-                                                            logger.debug("bitmhalo: fetched")
-                                                            #readmessages.append(msg_id)
-                                                        except:
-                                                            connection.close()
-                                                            logger.error("bitmhalo: fetch: %s" % traceback.format_exc())
-                                                            if systemexit==2:
-                                                                sys.exit()
-                                                            continue
-                                                        body = ""
-                                                        try:
-                                                            for part in msg_data:
-                                                                if isinstance(part, tuple):
-                                                                    msg = email.message_from_string(part[1])
-                                                                    try:
-                                                                        src = (msg['from'].split('<')[1].split('>')[0]).strip()
-                                                                    except:
-                                                                        src = msg['from'].strip()
-                                                                    try:
-                                                                        src1 = (msg['to'].split('<')[1].split('>')[0]).strip()
-                                                                    except:
-                                                                        src1 = msg['to'].strip()
-                                                                    try:
-                                                                        if msg.is_multipart():
-                                                                            for msub in msg.get_payload():
-                                                                                body = msub.get_payload(decode = True).decode(msub.get_content_charset())
-                                                                                break
-                                                                        else:
-                                                                            body = msg.get_payload(decode = True).decode(msg.get_content_charset())
-                                                                    except:
-                                                                        try:
-                                                                            body=str(msg.encode('utf8'))
-                                                                        except:
-                                                                            body=str(msg)
-                                                        except Exception, e:
-                                                            logger.error("bitmhalo: message read: %s" % traceback.format_exc())
-                                                        mymessage['toAddress']=str(src1)
-                                                        mymessage['fromAddress']=str(src)
-                                                        try:
-                                                            body=str(body.encode('utf8'))
-                                                        except:
-                                                            logger.error("bitmhalo: not encoded")
-                                                        try:
-                                                            body = body.split('****')[1].split('****')[0]
-                                                        except:
-                                                            try:
-                                                                if 'You have received a payment of ' not in str(body):
-                                                                    body=""
-                                                                else:
-                                                                    #I'm hoping email providers will not change this as identifying the full base64 string would be challenging.
-                                                                    #Any added padding gets changed when uploading the base64 image with the pyzmail library, although the bitmap is lossless
-                                                                    body = body.split('<doge>\nContent-Disposition: inline\n\n')[1].split('\n--=========')[0]
-                                                                    body="PAY TO EMAIL BASE64 IMAGE:"+body
-                                                            except:#Okay they changed it we can try something else
-                                                                try:
-                                                                    bodymsg = email.message_from_string(str(body))
-                                                                    x=0
-                                                                    posx=0
-                                                                    while x<len(bodymsg.get_payload()):
-                                                                        attachment = bodymsg.get_payload()[x]
-                                                                        if "bmp" in attachment.get_content_type():
-                                                                            posx=x
-                                                                        x+=1
-                                                                    attachment = msg.get_payload()[posx]
-                                                                    img=attachment.get_payload(decode=False)
-                                                                    body=img
-                                                                    body="PAY TO EMAIL BASE64 IMAGE:"+body
-                                                                except:
-                                                                    logger.error("bitmhalo: parse: %s" % traceback.format_exc())
-                                                                    body = ""
-                                                        if 'fromAddress' in mymessage and body!="": #decode emails
-                                                            if '@aol' in mymessage['fromAddress'].lower() or '@mail' in mymessage['fromAddress'].lower():
-                                                                body=body.encode('utf8').replace("\r\n ","")
-                                                                if "ENCRYPTED:" in body:
-                                                                    body=body.replace(" ","")
-                                                        mymessage['body']=str(body)
-                                                        mymessage['uid']=msg_id
-                                                        if 'fromAddress' in mymessage and 'toAddress' in mymessage:
-                                                            mailbox[str(dat['Email Address'])][msg_id]=ast.literal_eval(str(mymessage))
-                                                    if 'ordernumber' in dat:
-                                                        if "ENCRYPTED:" in str(body):
-                                                            try:
-                                                                MyCipher=body.replace("ENCRYPTED:","")
-                                                                MyCipher=base64.b64decode(MyCipher)
-                                                                MyCipher=decrypt(MyCipher, dat['Private Key'])
-                                                                body=MyCipher
-                                                            except Exception, e:
-                                                                try:
-                                                                    body=body.replace("=\r\n","")
-                                                                    body=body.replace("\r\n","")
-                                                                    body=body.replace(" ","")
-                                                                    body=body.replace("****","")
-                                                                    try:
-                                                                        body=body.encode('utf8')
-                                                                    except:
-                                                                        pass
-                                                                    try:
-                                                                        MyCipher=quopri.decodestring(body)
-                                                                    except:
-                                                                        MyCipher=body
-                                                                    MyCipher=MyCipher.replace("ENCRYPTED:","")
-                                                                    missing_padding = len(MyCipher) % 4
-                                                                    if missing_padding != 0:
-                                                                        MyCipher += b'='* (4 - missing_padding)
-                                                                    MyCipher=base64.b64decode(MyCipher)
-                                                                    MyCipher=decrypt(MyCipher, dat['Private Key'])
-                                                                    body=MyCipher
-                                                                except:
-                                                                    pass
-                                                        if dat['ordernumber'] in str(body):
-                                                            try:
-                                                                body=ast.literal_eval(body)
-                                                                if body['ordernumber']==dat['ordernumber']:
-                                                                    connection.uid('STORE', msg_id, '+FLAGS', '(\Deleted)')#The flags should always be in parenthesis
-                                                                    connection.expunge()
-                                                                    logger.info("bitmhalo: removed, msg_id: %s" % msg_id)
-                                                                    try:
-                                                                        mailbox[str(dat['Email Address'])].pop(msg_id)
-                                                                    except:
-                                                                        logger.error("bitmhalo: not removed from cache, msg_id: %s, %s" % (msg_id, traceback.format_exc()))
-                                                            except:
-                                                                logger.error("bitmhalo: not removed: %s" % traceback.format_exc())
-                                                        else:
-                                                            logger.info("bitmhalo: not removed, msg_id: %s" % msg_id)
-                                                    if mymessage not in inbox:
-                                                        inbox.append(mymessage)
-                                                #To save time and to avoid duplicates, i used to break at INBOX but we should also check Junk folder
-                                                #if str(mailbox_name)=="INBOX":
-                                                #   break
-                                            except:#Mailbox error
-                                                logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
-                                                if systemexit==2:
-                                                    sys.exit()
-                                                pass
-                                        logger.warning("bitmhalo: closing...")
-                                        connection.close()
-                                        logger.warning("bitmhalo: closed")
-                                        try:
-                                            waitlock()
-                                            lockTHIS=1
-                                            with open(mailpath,'w') as f:
-                                                f.write(str(mailbox))
-                                                f.flush()
-                                                os.fsync(f)
-                                                f.close()
-                                            lockTHIS=0
-                                        except:
-                                            lockTHIS=0
-                                            logger.error("bitmhalo: cache: %s, %s" % (mailpath, traceback.format_exc()))
-                                    except Exception, e:
-                                        if systemexit==2:
-                                            sys.exit()
-                                        logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
-                                        ret=False
-                        except Exception, e:
-                            if systemexit==2:
-                                sys.exit()
-                            logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
-                            pass
-                        try:
-                            if ch == "Clean Inbox":
-                                msgids=api.getAllInboxMessageIDs()
-                                a = api.getAllInboxMessages()
-                                dat['Address']=dat['Bitmessage Address']
-                                sentmessages = api.getSentMessagesBySender(dat['Address'])
-                                #Clear Sent symbolizes we have no open contracts to worry about message loss
-                                if 'Clear Sent' in dat:
-                                    Smsgids=api.getAllSentMessageIDs()
-                                    for msg in Smsgids:
-                                        message=api.getSentMessageByID(msg)
-                                        if message[0]['fromAddress']==dat['Bitmessage Address']:
-                                            if 'msgsent' in message[0]['status'] or 'ackreceived' in message[0]['status']:
-                                                api.trashSentMessage(msg)
-                                for msg in msgids:
-                                    message=api.getInboxMessageByID(msg)
-                                    if message[0]['toAddress']==dat['Bitmessage Address'] and 'Clear Sent' in dat:
-                                        api.trashInboxMessage(msg)
-                                    if message[0]['toAddress'] in dat['MyMarkets']:#Market orders are more expendable
-                                        api.trashInboxMessage(msg)
-                        except:
-                            a = api.getAllInboxMessages()
-                            sentmessages = "False"
-                            logger.error("bitmhalo: inbox: %s" % traceback.format_exc())
-                        if ch != "Clean Inbox":
-                            a = api.getAllInboxMessages()
-                        try:
-                            if ch != "Clean Inbox":
-                                sentmessages = api.getSentMessagesBySender(dat['Address'])
-                        except:
-                            sentmessages = "False"
-                        for inmessage in inbox:
-                            a.append(inmessage)
-                        try:
-                            status=api.clientStatus()
-                        except:
-                            logger.error("bitmhalo: status: %s" % traceback.format_exc())
-                            status=""
-                        logger.info(str("bitmhalo: inbox checked"))
-                        try:
-                            waitlock()
-                            lockTHIS=1
-                            with open(path,'w') as f:
-                                f.write("1"+"\n")
-                                if ch=="GetMessages" or ch=="Clean Inbox":
-                                    if ret==False:
-                                        f.write(ch+"1:False:"+str(status)+"\n")
-                                    else:
-                                        f.write(ch+"1:"+str(status)+"\n")
-                                    f.write(str(a)+"\n")
-                                    f.write(str(sentmessages)+"\n")
-                                if ch=="Remove Order":
-                                    f.write("RemoveOrder1\n")
-                                    f.write("True\n")
-                                    f.write("True\n")
-                                f.flush()
-                                os.fsync(f)
-                                f.close()
-                            lockTHIS=0
-                        except Exception, e:
-                            lockTHIS=0
-                            logger.error("bitmhalo: open: %s, %s" % (path, traceback.format_exc()))
-                            pass
-                if ch == "new":
-                    #Make a new address and return it
-                    dat=ast.literal_eval(data[2])
-                    try:
-                        waitlock()
-                        lockTHIS=1
-                        with open(path,'w') as f:
-                            if dat["Pubs"]==[]:
-                                addr=api.createRandomAddress("BitHalo")
-                            else:
-                                key=str(dat['Pubs'][0])
-                                key2=str(dat['Pubs'][1])
-                                addr=api.createDeterministicAddresses(str(key[:14]+key2[-14:]),"BitHalo")
-                                try:
-                                    addr=addr[0]
-                                except:
-                                    try:
-                                        addr=api.getDeterministicAddress(str(key[:14]+key2[-14:]))
-                                    except:
-                                        addr=" "
-                                addr2=api.createDeterministicAddresses(str(key2[:14]+key[-14:]),"BitHalo")
-                                logger.warning("addr: "+str(addr))
-                            f.write("1"+"\n")
-                            f.write("new1"+"\n")
-                            f.write(addr+"\n")
-                            f.write(dat["multisig"]+"\n")
-                            f.flush()
-                            os.fsync(f)
-                            f.close()
-                        lockTHIS=0
-                    except:
-                        lockTHIS=0
-                        logger.error("bitmhalo: new address: %s" % traceback.format_exc())
-                if ch == "Add Channel":
-                    #Make a new channel address and return it
-                    dat=ast.literal_eval(data[2])
+        except Exception, e:
+            logger.error("bitmhalo: read_input: %s %s %s" %
+                         (str(e), shared.bittmp_path, traceback.format_exc()))
+            #logger.error("bitmhalo: SLEEP!!!")
+            #time.sleep(360000)
 
-                    try:
-                        waitlock()
-                        lockTHIS=1
-                        with open(path,'w') as f:
-                            #addr=api.createDeterministicAddresses(dat['Address'],dat['Address'])
-                            #api.addSubscription(dat['Address'], addr)
+    def do_cmds(self):
+        if self.str_data_st != "0":
+            # not ready for input commands
+            return
+        if shared.systemexit == 1:
+            shared.systemexit = 2
+            logger.warning("bitmhalo: closing bitmessage...")
+            self.quit()
+            return
+        if shared.systemexit == 2:
+            return
+        try:
+            cmd = self.str_data_cmd
+            logger.debug("do1: %s, %s, %s" % (str(cmd), str(self.str_data_arg1), str(self.str_data_arg2)))
+            if cmd == "Send":
+                cmd_send(self.str_data_arg1, self.str_data_arg2)
+            if cmd == "Clean Inbox":
+                cmd_clean_inbox(cmd, self.str_data_arg1)
+            if cmd == "new":
+                cmd_new_address(self.str_data_arg1)
+            if cmd == "Add Channel":
+                cmd_add_channel(self.str_data_arg1)
+            if cmd == "Remove Channel":
+                cmd_remove_channel(self.str_data_arg1)
+            if cmd == "exit":
+                shared.systemexit = 2
+                logger.warning("bitmhalo: closing bitmessage...")
+                self.quit()
+        except Exception, e:
+            logger.error("bitmhalo: checking/thread: %s %s" %
+                         (str(e), traceback.format_exc()))
+
+    def do_get_messages(self):
+        if self.str_data_st != "0":
+            # not ready for input commands
+            return
+        if shared.systemexit == 1:
+            shared.systemexit = 2
+            logger.warning(str("bitmhalo: closing bitmessage..."))
+            self.quit()
+            return
+        if shared.systemexit == 2:
+            return
+        try:
+            cmd = self.str_data_cmd
+            logger.debug("do2: %s, %s, %s" % (str(cmd), str(self.str_data_arg1), str(self.str_data_arg2)))
+            if cmd == "GetMessages" or cmd == "Remove Order":
+                logger.info("bitmhalo: checking Inbox...")
+                inbox = []
+                ret = ""
+                try:
+                    dat = ast.literal_eval(self.str_data_arg1)
+                    if 'Password' in dat:
+                        if dat['Password'] == "#!#":
+                            dat['Password'] = shared.mypassword
+                        try:
+                            dat['Password'] = password.DecryptWithAES(
+                                "Halo Master", dat['Password'])
+                        except:
+                            logger.error(
+                                "bitmhalo: password aes decrypt: %s" % traceback.format_exc())
+                        verified, imap_name, smtp_name, port, is_ssl = email_support.is_email_provider_supported(
+                            dat['Email Address'])
+                        if verified:
+                            global prevaccount, readmessages
+                            if dat['Email Address'] != prevaccount or cmd == "Remove Order":
+                                # reset on new accounts or maintenance
+                                # For now we maintain the record of read messages on the client side
+                                readmessages = []
+
+                            ret, readmessages, mailbox = email_support.read_inbox_messages(
+                                dat, readmessages, shared.mailcache_path, imap_name, shared.myrpc)
+                            prevaccount = dat['Email Address']
+
                             try:
-                                addr=api.joinChannel(dat['Address'])
+                                waitlock()
+                                shared.lockTHIS = 1
+                                with open(shared.mailcache_path, 'w') as f:
+                                    f.write(str(mailbox))
+                                    f.flush()
+                                    os.fsync(f.fileno())
+                                    f.close()
+                                shared.lockTHIS = 0
                             except:
-                                try:
-                                    addrdata=api.listAddressBook()
-                                    for add in addrdata:
-                                        if add['label']=="[chan] "+dat['Address']:
-                                            addr=add['address']
-                                            break
-                                except:
-                                    addr="Exception"
-                            f.write("1"+"\n")
-                            f.write("chan1"+"\n")
-                            f.write(addr+"\n")
-                            f.write(dat['Address']+"\n")
-                            f.flush()
-                            os.fsync(f)
-                            f.close()
-                        lockTHIS=0
-                    except:
-                        lockTHIS=0
-                        logger.error("bitmhalo: add channel: %s" % traceback.format_exc())
-                if ch == "Remove Channel":
-                    #Make a new channel address and return it
-                    dat=ast.literal_eval(data[2])
-                    try:
-                        waitlock()
-                        lockTHIS=1
-                        with open(path,'w') as f:
-                            #addr=api.createDeterministicAddresses(dat['Address'],dat['Address'])
-                            #api.addSubscription(dat['Address'], addr)
-                            try:
-                                addr=api.deleteChannel(dat['Address'])
-                                if addr:
-                                    addr="Success"
-                                else:
-                                    addr="Failed"
-                            except:
-                                traceback.print_exc()
-                                addr="Exception"
-                            f.write("1"+"\n")
-                            f.write("remchan"+"\n")
-                            f.write(addr+"\n")
-                            f.write(dat['Address']+"\n")
-                            f.flush()
-                            os.fsync(f)
-                            f.close()
-                        lockTHIS=0
-                    except:
-                        lockTHIS=0
-                        logger.error("bitmhalo: remove channel: %s" % traceback.format_exc())
-            except:
-                if systemexit==2:
-                    sys.exit()
-                logger.error("bitmhalo: checking/thread: %s" % traceback.format_exc())
+                                shared.lockTHIS = 0
+                                logger.error("bitmhalo: cache: %s, %s" % (
+                                    shared.mailcache_path, traceback.format_exc()))
+
+                except Exception, e:
+                    logger.error("bitmhalo: inbox: %s" %
+                                 traceback.format_exc())
+
+                inbox_messages = shared.bm_api.getAllInboxMessages()
+
+                try:
+                    sentmessages = shared.bm_api.getSentMessagesBySender(
+                        dat['Address'])
+                except:
+                    sentmessages = "False"
+
+                for inmessage in inbox:
+                    inbox_messages.append(inmessage)
+
+                try:
+                    status = shared.bm_api.clientStatus()
+                except:
+                    logger.error("bitmhalo: status: %s" %
+                                 traceback.format_exc())
+                    status = ""
+
+                logger.info(str("bitmhalo: inbox checked"))
+                try:
+                    waitlock()
+                    shared.lockTHIS = 1
+                    with open(shared.bittmp_path, 'w') as f:
+                        f.write("1" + "\n")
+                        if cmd == "GetMessages":
+                            if ret == False:
+                                f.write(cmd + "1:False:" + str(status) + "\n")
+                            else:
+                                f.write(cmd + "1:" + str(status) + "\n")
+                            f.write(str(inbox_messages) + "\n")
+                            f.write(str(sentmessages) + "\n")
+                        if cmd == "Remove Order":
+                            f.write("RemoveOrder1\n")
+                            f.write("True\n")
+                            f.write("True\n")
+                        f.flush()
+                        os.fsync(f.fileno())
+                        f.close()
+                    shared.lockTHIS = 0
+                except Exception, e:
+                    shared.lockTHIS = 0
+                    logger.error("bitmhalo: open: %s, %s" %
+                                 (shared.bittmp_path, traceback.format_exc()))
+                    pass
+            if cmd == "exit":
+                shared.systemexit = 2
+                self.quit()
+        except Exception, e:
+            logger.error("bitmhalo: checking/thread: %s %s" %
+                         (str(e), traceback.format_exc()))
+
+def main():
+    init()
+    app = BMHaloApp(sys.argv)
+    sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    main()

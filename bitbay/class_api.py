@@ -1,17 +1,16 @@
 import os
 import sys
 import time
-import json
 import threading
 import logging
 import socket
-from SimpleXMLRPCServer import SimpleXMLRPCServer
+
+app_dir = os.path.dirname(os.path.abspath(__file__))+'/../src'
+sys.path.insert(0, app_dir)
+
+from pyelliptic import openssl
 
 import addresses
-import cmd
-import datetime
-import signal
-from  pyelliptic import openssl
 import helper_sent
 import helper_inbox
 import defaults
@@ -21,16 +20,16 @@ import network.stats
 ###############
 import parallelTestModule
 
-if __name__ ==  '__main__':
-  extractor = parallelTestModule.ParallelExtractor()
-  extractor.runInParallel(numProcesses=2, numThreads=4)
+if __name__ == '__main__':
+    extractor = parallelTestModule.ParallelExtractor()
+    extractor.runInParallel(numProcesses=1, numThreads=4)
 ###############
 
-SUPPORTED_VERSIONS = ['0.4.1']
+SUPPORTED_VERSIONS = ['0.4.1', '0.6.3.2']
 
 logger = logging.getLogger('console')
 
-#A hack to let pybitmessage source directory exist as Subdir for testing
+# A hack to let pybitmessage source directory exist as Subdir for testing
 if os.path.exists(os.path.abspath('PyBitmessage')):
     sys.path.append(os.path.abspath('PyBitmessage/src'))
 
@@ -38,15 +37,17 @@ if os.path.exists(os.path.abspath('PyBitmessage')):
 class APIError(Exception):
     def __init__(self, error_message):
         self.error_message = error_message
+
     def __str__(self):
         return "API Error: %s" % self.error_message
 
-def getAPI(workingdir=None,silent=False):
+
+def getAPI(workingdir=None, silent=False):
 
     if workingdir:
         os.environ["BITMESSAGE_HOME"] = workingdir
 
-    #Workaround while logging is not completed
+    # Workaround while logging is not completed
     if silent:
         import StringIO
         fobj = StringIO.StringIO()
@@ -57,17 +58,14 @@ def getAPI(workingdir=None,silent=False):
 
     version = softwareVersion
     if not version in SUPPORTED_VERSIONS:
-        sys.stderr.write('Bitmessage Vesion %s is not Supported officially.\n'%version)
-    print "Hello"
-    if version == '0.4.1':
-        global ADDRESSVERSION
-        ADDRESSVERSION = 4
-    else:
-        ADDRESSVERSION = 4
+        sys.stderr.write(
+            'Bitmessage Vesion %s is not Supported officially.\n' % version)
+
+    global ADDRESSVERSION
+    ADDRESSVERSION = 4
 
     class MainAPI(bitmessagemain.Main):
         def _close_and_wait(self):
-
             """For Testing purposes only"""
 
             self.stop()
@@ -77,9 +75,7 @@ def getAPI(workingdir=None,silent=False):
                 print self._count_threads()
                 bitmessagemain.shared.shutdown = 1
 
-
         def _count_threads(self):
-
             """This function counts running Threads"""
 
             thcount = 0
@@ -91,7 +87,6 @@ def getAPI(workingdir=None,silent=False):
             return thcount
 
         def clientStatus(self):
-
             '''Returns the Status of the Bitmessage Daemon
             Usage: status = api.clinetStatus()
             print status['externalIPAddress']
@@ -113,28 +108,30 @@ def getAPI(workingdir=None,silent=False):
                 info['externalIPAddress'] = socket.inet_ntoa(data[40:44])
             except:
                 info['externalIPAddress'] = 'Not implemented jet'
-            info['networkConnections'] = len(network.stats.connectedHostsList())
+            info['networkConnections'] = len(
+                network.stats.connectedHostsList())
             info['numberOfMessagesProcessed'] = bitmessagemain.shared.numberOfMessagesProcessed
             info['numberOfBroadcastsProcessed'] = bitmessagemain.shared.numberOfBroadcastsProcessed
             info['numberOfPubkeysProcessed'] = bitmessagemain.shared.numberOfPubkeysProcessed
             info['networkStatus'] = networkStatus
-            logger.debug('Status: %s'%info)
+            logger.debug('Status: %s' % info)
             return info
 
-        def createDeterministicAddresses(self,passphrase,label='',numberOfAddresses=1,eighteenByteRipe=False,totalDifficulty=1,smallMessageDifficulty=1,streamNumberForAddress=1):
-
+        def createDeterministicAddresses(self, passphrase, label='', numberOfAddresses=1, eighteenByteRipe=False, totalDifficulty=1, smallMessageDifficulty=1, streamNumberForAddress=1):
             '''Creates a Deterministic Bitmessage Address (an Address based on a password)
             Usage: api.createDeterministicAddresses(passphrase,label,numberOfAddresses,eighteenByteRipe,totalDifficulty,smallMessageDifficulty)'''
 
-            logger.debug('Passphrase: %s Label: %s'%(passphrase,label))
+            logger.debug('Passphrase: %s Label: %s' % (passphrase, label))
             if len(passphrase) == 0:
                 raise APIError('The specified passphrase is blank.')
 
             if not isinstance(eighteenByteRipe, bool):
-                raise APIError('Bool expected in eighteenByteRipe, got %s instead' % type(eighteenByteRipe))
+                raise APIError(
+                    'Bool expected in eighteenByteRipe, got %s instead' % type(eighteenByteRipe))
 
             if streamNumberForAddress != 1:
-                raise APIError('Only Stream Number 1 is Supported jet. Got: %s' % streamNumberForAddress)
+                raise APIError(
+                    'Only Stream Number 1 is Supported jet. Got: %s' % streamNumberForAddress)
 
             if numberOfAddresses == 0:
                 raise APIError('Why do you want to create 0 Addresses.')
@@ -149,8 +146,10 @@ def getAPI(workingdir=None,silent=False):
                 label = passphrase
 
             label = unicode(label, 'utf-8')
-            nonceTrialsPerByte = int(defaults.networkDefaultProofOfWorkNonceTrialsPerByte * totalDifficulty)
-            payloadLengthExtraBytes = int(defaults.networkDefaultPayloadLengthExtraBytes * smallMessageDifficulty)
+            nonceTrialsPerByte = int(
+                defaults.networkDefaultProofOfWorkNonceTrialsPerByte * totalDifficulty)
+            payloadLengthExtraBytes = int(
+                defaults.networkDefaultPayloadLengthExtraBytes * smallMessageDifficulty)
             queues.apiAddressGeneratorReturnQueue.queue.clear()
             queues.addressGeneratorQueue.put(
                 ('createDeterministicAddresses', ADDRESSVERSION, streamNumberForAddress,
@@ -158,83 +157,92 @@ def getAPI(workingdir=None,silent=False):
             queueReturn = queues.apiAddressGeneratorReturnQueue.get()
             return queueReturn
 
-        def createRandomAddress(self,label,eighteenByteRipe=False,totalDifficulty=1,smallMessageDifficulty=1,streamNumberForAddress=1):
-
+        def createRandomAddress(self, label, eighteenByteRipe=False, totalDifficulty=1, smallMessageDifficulty=1, streamNumberForAddress=1):
             '''Create a reandom Bitmessage Address
             Usage: api.createRandomAddress(label,eighteenByteRipe,totalDifficulty,smallMessageDifficulty)'''
 
             if not isinstance(eighteenByteRipe, bool):
-                raise APIError('Bool expected in eighteenByteRipe, got %s instead' % type(eighteenByteRipe))
+                raise APIError(
+                    'Bool expected in eighteenByteRipe, got %s instead' % type(eighteenByteRipe))
 
             if streamNumberForAddress != 1:
-                raise APIError('Only Stream Number 1 is Supported jet. Got: %s' % streamNumberForAddress)
+                raise APIError(
+                    'Only Stream Number 1 is Supported jet. Got: %s' % streamNumberForAddress)
 
             unicode(label, 'utf-8')
-            nonceTrialsPerByte = int(defaults.networkDefaultProofOfWorkNonceTrialsPerByte * totalDifficulty)
-            payloadLengthExtraBytes = int(defaults.networkDefaultPayloadLengthExtraBytes * smallMessageDifficulty)
+            nonceTrialsPerByte = int(
+                defaults.networkDefaultProofOfWorkNonceTrialsPerByte * totalDifficulty)
+            payloadLengthExtraBytes = int(
+                defaults.networkDefaultPayloadLengthExtraBytes * smallMessageDifficulty)
             queues.apiAddressGeneratorReturnQueue.queue.clear()
             queues.addressGeneratorQueue.put((
                 'createRandomAddress', ADDRESSVERSION, streamNumberForAddress, label, 1, "", eighteenByteRipe, nonceTrialsPerByte, payloadLengthExtraBytes))
             return queues.apiAddressGeneratorReturnQueue.get()
 
-        def deleteAddress(self,address):
+        def deleteAddress(self, address):
 
-            status, addressVersionNumber, streamNumber, toRipe = self._verifyAddress(address)
+            status, addressVersionNumber, streamNumber, toRipe = self._verifyAddress(
+                address)
             address = addresses.addBMIfNotPresent(address)
             if not bitmessagemain.shared.config.has_section(address):
-                raise APIError('Could not find this address in your keys.dat file.')
+                raise APIError(
+                    'Could not find this address in your keys.dat file.')
 
             bitmessagemain.shared.config.remove_section(address)
             with open(bitmessagemain.shared.appdata + 'keys.dat', 'wb') as configfile:
                 bitmessagemain.shared.config.write(configfile)
+                configfile.close()
 
             bitmessagemain.shared.reloadMyAddressHashes()
             return True
 
-        def deleteChannel(self,address):
+        def deleteChannel(self, address):
             self.deleteAddress(address)
             self.deleteFromAddressBook(address)
             return True
 
-        def deleteFromAddressBook(self,address):
-
+        def deleteFromAddressBook(self, address):
             '''Delete a Contact from Address Book
             Usage: api.deleteContact(bmaddress)'''
 
-            queryreturn = bitmessagemain.shared.sqlExecute('''delete from addressbook where address=?''',address)
+            queryreturn = bitmessagemain.shared.sqlExecute(
+                '''delete from addressbook where address=?''', address)
             return True
 
         def getAllInboxMessageIDs(self):
-
             '''Get a List of IDs of all Inbox Messages
             Usage: api.getAllInboxMessageIDs()'''
 
-            queryreturn = bitmessagemain.shared.sqlQuery('''SELECT msgid FROM inbox where folder='inbox' ORDER BY received''')
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''SELECT msgid FROM inbox where folder='inbox' ORDER BY received''')
             data = []
             for msgid in queryreturn:
                 data.append(msgid[0].encode('hex'))
             return data
 
         def getAllInboxMessages(self):
-
             '''Return a List of all Inbox Messages
             Usage: api.getAllInboxMessages()'''
 
-            queryreturn = bitmessagemain.shared.sqlQuery('''SELECT msgid, toaddress, fromaddress, subject, received, message, encodingtype, read FROM inbox where folder='inbox' ORDER BY received''')
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''SELECT msgid, toaddress, fromaddress, subject, received, message, encodingtype, read FROM inbox where folder='inbox' ORDER BY received''')
             messages = []
             for row in queryreturn:
                 msgid, toAddress, fromAddress, subject, received, message, encodingtype, read = row
-                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(subject)
-                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(message)
-                messages.append({'msgid': msgid.encode('hex'),'toAddress': toAddress, 'fromAddress': fromAddress, 'subject': subject, 'message': message, 'encodingType': encodingtype, 'receivedTime': received, 'read': read})
+                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    subject)
+                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    message)
+                messages.append({'msgid': msgid.encode('hex'), 'toAddress': toAddress, 'fromAddress': fromAddress,
+                                 'subject': subject, 'message': message, 'encodingType': encodingtype, 'receivedTime': received, 'read': read})
             return messages
 
         def getAllSentMessageIDs(self):
-
             '''Get a List of IDs of all Outbox Messages
             Usage: getAllSentMessageIDs()'''
 
-            queryreturn = bitmessagemain.shared.sqlQuery('''SELECT msgid FROM sent where folder='sent' ORDER BY lastactiontime''')
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''SELECT msgid FROM sent where folder='sent' ORDER BY lastactiontime''')
             data = []
             for row in queryreturn:
                 msgid = row[0]
@@ -242,27 +250,29 @@ def getAPI(workingdir=None,silent=False):
             return data
 
         def getAllSentMessages(self):
-
             '''Get a List of all Outbox Messages
             Usage: api.getAllSentMessages()'''
 
-            queryreturn = bitmessagemain.shared.sqlQuery('''SELECT msgid, toaddress, fromaddress, subject, lastactiontime, message, encodingtype, status, ackdata FROM sent where folder='sent' ORDER BY lastactiontime''')
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''SELECT msgid, toaddress, fromaddress, subject, lastactiontime, message, encodingtype, status, ackdata FROM sent where folder='sent' ORDER BY lastactiontime''')
             data = []
             for row in queryreturn:
                 msgid, toAddress, fromAddress, subject, lastactiontime, message, encodingtype, status, ackdata = row
-                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(subject)
-                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(message)
-                data.append({'msgid':msgid.encode('hex'), 'toAddress':toAddress, 'fromAddress':fromAddress, 'subject':subject, 'message':message, 'encodingType':encodingtype, 'lastActionTime':lastactiontime, 'status':status, 'ackData':ackdata.encode('hex')})
+                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    subject)
+                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    message)
+                data.append({'msgid': msgid.encode('hex'), 'toAddress': toAddress, 'fromAddress': fromAddress, 'subject': subject, 'message': message,
+                             'encodingType': encodingtype, 'lastActionTime': lastactiontime, 'status': status, 'ackData': ackdata.encode('hex')})
             return data
 
-        def getDeterministicAddress(self,passphrase):
-
+        def getDeterministicAddress(self, passphrase):
             '''Returns a Deterministic Address for a give Passphrase
             Usage: api.getDeterministicAddress()'''
 
-            #hardcoded in correct version and stream number, because they shouldn't be changed until now
+            # hardcoded in correct version and stream number, because they shouldn't be changed until now
             streamNumberForAddress = 1
-            streamNumber=1
+            streamNumber = 1
             numberOfAddresses = 1
             eighteenByteRipe = False
             queues.addressGeneratorQueue.put(
@@ -271,128 +281,145 @@ def getAPI(workingdir=None,silent=False):
             return queues.apiAddressGeneratorReturnQueue.get()
 
         def getInboxMessageByID(self, msgid):
-
             '''Return an Inbox Message by a given ID
             Usage: print api.getInboxMessageByID(MessageID)'''
 
             msgid = msgid.decode('hex')
-            queryreturn = bitmessagemain.shared.sqlQuery('''SELECT msgid, toaddress, fromaddress, subject, received, message, encodingtype, read FROM inbox WHERE msgid=?''',msgid)
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''SELECT msgid, toaddress, fromaddress, subject, received, message, encodingtype, read FROM inbox WHERE msgid=?''', msgid)
             data = []
             for row in queryreturn:
                 msgid, toAddress, fromAddress, subject, received, message, encodingtype, read = row
-                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(subject)
-                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(message)
-                data.append({'msgid':msgid.encode('hex'), 'toAddress':toAddress, 'fromAddress':fromAddress, 'subject':subject, 'message':message, 'encodingType':encodingtype, 'receivedTime':received, 'read': read})
+                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    subject)
+                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    message)
+                data.append({'msgid': msgid.encode('hex'), 'toAddress': toAddress, 'fromAddress': fromAddress,
+                             'subject': subject, 'message': message, 'encodingType': encodingtype, 'receivedTime': received, 'read': read})
             return data
 
-        def getSentMessageByID(self,msgid):
-
+        def getSentMessageByID(self, msgid):
             '''Return an Outbox Message by a given ID
             Usage: print api.getSentMessageByID(MessageID)'''
 
             msgid = msgid.decode('hex')
-            queryreturn = bitmessagemain.shared.sqlQuery('''SELECT msgid, toaddress, fromaddress, subject, lastactiontime, message, encodingtype, status, ackdata FROM sent WHERE msgid=?''',msgid)
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''SELECT msgid, toaddress, fromaddress, subject, lastactiontime, message, encodingtype, status, ackdata FROM sent WHERE msgid=?''', msgid)
             data = []
             for row in queryreturn:
                 msgid, toAddress, fromAddress, subject, lastactiontime, message, encodingtype, status, ackdata = row
-                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(subject)
-                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(message)
-                data.append({'msgid':msgid.encode('hex'), 'toAddress':toAddress, 'fromAddress':fromAddress, 'subject':subject.encode('base64'), 'message':message.encode('base64'), 'encodingType':encodingtype, 'lastActionTime':lastactiontime, 'status':status, 'ackData':ackdata.encode('hex')})
+                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    subject)
+                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    message)
+                data.append({'msgid': msgid.encode('hex'), 'toAddress': toAddress, 'fromAddress': fromAddress, 'subject': subject.encode('base64'), 'message': message.encode(
+                    'base64'), 'encodingType': encodingtype, 'lastActionTime': lastactiontime, 'status': status, 'ackData': ackdata.encode('hex')})
             return data
 
         def getSentMessagesBySender(self, fromAddress):
-
             '''Return a List of Message by a given Send Address
             Usage: print api.getSentMessagesBySender(SendAddress)'''
 
-            queryreturn = bitmessagemain.shared.sqlQuery('''SELECT msgid, toaddress, fromaddress, subject, lastactiontime, message, encodingtype, status, ackdata FROM sent WHERE folder='sent' AND fromAddress=? ORDER BY lastactiontime''',fromAddress)
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''SELECT msgid, toaddress, fromaddress, subject, lastactiontime, message, encodingtype, status, ackdata FROM sent WHERE folder='sent' AND fromAddress=? ORDER BY lastactiontime''', fromAddress)
             data = []
             for row in queryreturn:
                 msgid, toAddress, fromAddress, subject, lastactiontime, message, encodingtype, status, ackdata = row
-                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(subject)
-                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(message)
-                data.append({'msgid':msgid.encode('hex'), 'toAddress':toAddress, 'fromAddress':fromAddress, 'subject':subject, 'message':message, 'encodingType':encodingtype, 'lastActionTime':lastactiontime, 'status':status, 'ackData':ackdata.encode('hex')})
+                subject = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    subject)
+                message = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    message)
+                data.append({'msgid': msgid.encode('hex'), 'toAddress': toAddress, 'fromAddress': fromAddress, 'subject': subject, 'message': message,
+                             'encodingType': encodingtype, 'lastActionTime': lastactiontime, 'status': status, 'ackData': ackdata.encode('hex')})
             return data
 
         def joinChannel(self, label, testaddress=None):
-
             '''Join a Channel by a Given Name or Password
             api.joinChannel(label,testaddress[Only for Testing if the Name is correct])'''
 
             str_chan = '[chan]'
 
-            #Precheck Address Book
-            queryreturn = bitmessagemain.shared.sqlQuery('''select * from addressbook where label=?''',str_chan + ' ' + label)
+            # Precheck Address Book
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''select * from addressbook where label=?''', str_chan + ' ' + label)
             if queryreturn != []:
-                raise APIError('Channel already in Addressbook: %s'%label)
+                raise APIError('Channel already in Addressbook: %s' % label)
 
-            #Add Channel to Own Addresses
+            # Add Channel to Own Addresses
             queues.apiAddressGeneratorReturnQueue.queue.clear()
-            queues.addressGeneratorQueue.put(('createChan', 4, 1, str_chan + ' ' + label ,label))
+            queues.addressGeneratorQueue.put(
+                ('createChan', 4, 1, str_chan + ' ' + label, label))
             addressGeneratorReturnValue = queues.apiAddressGeneratorReturnQueue.get()
 
             if len(addressGeneratorReturnValue) == 0:
-                raise APIError('The Channel is already in use: %s'%label)
+                raise APIError('The Channel is already in use: %s' % label)
 
             address = addressGeneratorReturnValue[0]
             if testaddress:
                 if str(address) != str(testaddress):
-                    raise APIError('The entered address does not match the address generated by the label')
+                    raise APIError(
+                        'The entered address does not match the address generated by the label')
 
-            #Precheck Address Book
-            queryreturn = bitmessagemain.shared.sqlQuery('''select * from addressbook where label=?''',address)
+            # Precheck Address Book
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''select * from addressbook where label=?''', address)
             if queryreturn != []:
-                raise APIError('Channel already in Addressbook: %s'%label)
+                raise APIError('Channel already in Addressbook: %s' % label)
 
-            #Add Address to Address Book
-            bitmessagemain.shared.sqlExecute('''INSERT INTO addressbook VALUES (?,?)''',str_chan + ' ' + label, address)
+            # Add Address to Address Book
+            bitmessagemain.shared.sqlExecute(
+                '''INSERT INTO addressbook VALUES (?,?)''', str_chan + ' ' + label, address)
             return address
 
         def listAddressBook(self):
-
             '''List the Address Book
             Usage: print api.listContacts()'''
 
-            queryreturn = bitmessagemain.shared.sqlQuery('''select * from addressbook''')
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''select * from addressbook''')
             data = []
             for row in queryreturn:
                 label, address = row
-                label = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(label)
-                data.append({'label':label, 'address': address})
+                label = bitmessagemain.shared.fixPotentiallyInvalidUTF8Data(
+                    label)
+                data.append({'label': label, 'address': address})
             return data
 
         def sendMessage(self, fromAddress, toAddress, subject, message):
-
             '''Send a Message to a given Address or Channel
             Usage: api.sendBroadcast(OwnAddress, TargetAddress, Subject, Message)'''
 
-            #Hardcoded Encoding Type, no othe supported jet
+            # Hardcoded Encoding Type, no othe supported jet
             encodingType = 2
 
-            status, addressVersionNumber, streamNumber, toRipe = addresses.decodeAddress(toAddress)
+            status, addressVersionNumber, streamNumber, toRipe = addresses.decodeAddress(
+                toAddress)
             if status != 'success':
                 with bitmessagemain.shared.printLock:
-                    print 'ToAddress Error: %s , %s'%(toAddress,status)
-                return (toAddress,status)
-            status, addressVersionNumber, streamNumber, fromRipe = addresses.decodeAddress(fromAddress)
+                    print 'ToAddress Error: %s , %s' % (toAddress, status)
+                return (toAddress, status)
+            status, addressVersionNumber, streamNumber, fromRipe = addresses.decodeAddress(
+                fromAddress)
             if status != 'success':
                 with bitmessagemain.shared.printLock:
-                    print 'fromAddress Error: %s , %s'%(fromAddress,status)
-                return (fromAddress,status)
+                    print 'fromAddress Error: %s , %s' % (fromAddress, status)
+                return (fromAddress, status)
             toAddress = addresses.addBMIfNotPresent(toAddress)
             fromAddress = addresses.addBMIfNotPresent(fromAddress)
             try:
-                fromAddressEnabled = bitmessagemain.shared.config.getboolean(fromAddress, 'enabled')
+                fromAddressEnabled = bitmessagemain.shared.config.getboolean(
+                    fromAddress, 'enabled')
             except:
-                return (fromAddress,'fromAddressNotPresentError')
+                return (fromAddress, 'fromAddressNotPresentError')
             if not fromAddressEnabled:
-                return (fromAddress,'fromAddressDisabledError')
+                return (fromAddress, 'fromAddressDisabledError')
             ackdata = openssl.OpenSSL.rand(32)
             t = ('', toAddress, toRipe, fromAddress, subject, message, ackdata, int(
                 time.time()), 'msgqueued', 1, 1, 'sent', 2)
             helper_sent.insert(t)
             toLabel = ''
-            queryreturn = bitmessagemain.shared.sqlQuery('''select label from addressbook where address=?''',toAddress)
+            queryreturn = bitmessagemain.shared.sqlQuery(
+                '''select label from addressbook where address=?''', toAddress)
             if queryreturn != []:
                 for row in queryreturn:
                     toLabel, = row
@@ -401,8 +428,7 @@ def getAPI(workingdir=None,silent=False):
             bitmessagemain.shared.workerQueue.put(('sendmessage', toAddress))
             return ackdata.encode('hex')
 
-        def trashInboxMessage(self,msgid):
-
+        def trashInboxMessage(self, msgid):
             '''Trash a Message from Inbox by a given ID
             Usage: api.trashInboxMessage(MessageID)'''
 
@@ -410,35 +436,41 @@ def getAPI(workingdir=None,silent=False):
             helper_inbox.trash(msgid)
             return True
 
-        def trashSentMessage(self,msgid):
-
+        def trashSentMessage(self, msgid):
             '''Trash a Message from Outbox by a given ID
             Usage: api.trashSentMessage(MessageID)'''
 
             msgid = msgid.decode('hex')
-            bitmessagemain.shared.sqlExecute('''UPDATE sent SET folder='trash' WHERE msgid=?''',msgid)
+            bitmessagemain.shared.sqlExecute(
+                '''UPDATE sent SET folder='trash' WHERE msgid=?''', msgid)
             return True
 
         def _verifyAddress(self, address):
-            status, addressVersionNumber, streamNumber, ripe = addresses.decodeAddress(address)
+            status, addressVersionNumber, streamNumber, ripe = addresses.decodeAddress(
+                address)
             if status != 'success':
-                logger.warn('API Error 0007: Could not decode address %s. Status: %s.', address, status)
+                logger.warn(
+                    'API Error 0007: Could not decode address %s. Status: %s.', address, status)
 
                 if status == 'checksumfailed':
                     raise APIError('Checksum failed for address: ' + address)
                 if status == 'invalidcharacters':
                     raise APIError('Invalid characters in address: ' + address)
                 if status == 'versiontoohigh':
-                    raise APIError('Address version number too high (or zero) in address: ' + address)
-                raise APIError('Could not decode address: ' + address + ' : ' + status)
+                    raise APIError(
+                        'Address version number too high (or zero) in address: ' + address)
+                raise APIError('Could not decode address: ' +
+                               address + ' : ' + status)
             if addressVersionNumber < 2 or addressVersionNumber > 4:
-                raise APIError('The address version number currently must be 2, 3 or 4. Others aren\'t supported. Check the address.')
+                raise APIError(
+                    'The address version number currently must be 2, 3 or 4. Others aren\'t supported. Check the address.')
             if streamNumber != 1:
-                raise APIError('The stream number must be 1. Others aren\'t supported. Check the address.')
+                raise APIError(
+                    'The stream number must be 1. Others aren\'t supported. Check the address.')
 
             return (status, addressVersionNumber, streamNumber, ripe)
 
     api = MainAPI()
     api.start(daemon=True)
-    time.sleep(5)
+    #time.sleep(5)
     return api

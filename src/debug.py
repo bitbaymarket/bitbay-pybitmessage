@@ -26,7 +26,7 @@ helper_startup.loadConfig()
 
 # Now can be overriden from a config file, which uses standard python logging.config.fileConfig interface
 # examples are here: https://bitmessage.org/forum/index.php/topic,4820.msg11163.html#msg11163
-log_level = 'WARNING'
+log_level = 'INFO'
 
 def log_uncaught_exceptions(ex_cls, ex, tb):
     logging.critical('Unhandled exception', exc_info=(ex_cls, ex, tb))
