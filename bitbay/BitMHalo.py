@@ -375,9 +375,9 @@ def get_datadir_path():
         if "path=" in arg:
             datadir_path = arg
             if os.name == 'nt':
-                datadir_path = sysdir + "\\"
+                datadir_path = datadir_path + "\\"
             else:
-                datadir_path = sysdir + "/"
+                datadir_path = datadir_path + "/"
             datadir_path = datadir_path.replace("path=", "")
             break
 

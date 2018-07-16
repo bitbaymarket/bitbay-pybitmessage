@@ -348,7 +348,7 @@ def getAPI(workingdir=None, silent=False):
             # Add Channel to Own Addresses
             queues.apiAddressGeneratorReturnQueue.queue.clear()
             queues.addressGeneratorQueue.put(
-                ('createChan', 4, 1, str_chan + ' ' + label, label))
+                ('createChan', 4, 1, str_chan + ' ' + label, label, True))
             addressGeneratorReturnValue = queues.apiAddressGeneratorReturnQueue.get()
 
             if len(addressGeneratorReturnValue) == 0:
