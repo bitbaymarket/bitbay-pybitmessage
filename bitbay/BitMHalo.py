@@ -2,6 +2,7 @@
 import sys
 sys.frozen = False
 import os
+import re
 from logging import Logger
 
 app_dir = os.path.dirname(os.path.abspath(__file__))+'/../src'
@@ -262,9 +263,23 @@ def cmd_send(str_data, data3):
                              (shared.outbox_path, traceback.format_exc()))
             ret = "False" + str(str_data)
     else:
-        content = ast.literal_eval(str_data)
-        from_address = content['MyBMAddress']
-        to_address = content['TheirBMAddress']
+        if "ENCRYPTED:" in str_data:
+            try:
+                match_obj = re.match(r'(MY:)(.*?)(THEIR:)(.*?)(ENCRYPTED:)(.*?)(###)', str_data, re.M | re.I)
+                content = match_obj.group(5) + match_obj.group(6)
+                from_address = match_obj.group(2)
+                to_address = match_obj.group(4)
+            except:
+                logger.error("bitmhalo: encryption: %s" % traceback.format_exc())
+        else:
+            try:
+                content = ast.literal_eval(str_data)
+                from_address = content['MyBMAddress']
+                to_address = content['TheirBMAddress']
+            except:
+                logger.error("bitmhalo: parse: %s" % traceback.format_exc())
+                to_address = ""
+                content = "####"
 
         logger.info("bitmhalo: about to send: %s" % str(content))
         try:
