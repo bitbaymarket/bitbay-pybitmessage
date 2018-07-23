@@ -270,6 +270,7 @@ def cmd_send(str_data, data3):
         try:
             ret = shared.bm_api.sendMessage(from_address, to_address,
                                   "BitHalo", str(content))
+            logger.info("bitmhalo: send return info: %s" % str(ret))
         except Exception, e:
             logger.error("bitmhalo: bm send: %s, %s" %
                          (str(e), traceback.format_exc()))

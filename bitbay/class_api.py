@@ -16,6 +16,8 @@ import helper_inbox
 import defaults
 import queues
 import network.stats
+from bmconfigparser import BMConfigParser
+from helper_ackPayload import genAckPayload
 
 ###############
 import parallelTestModule
@@ -407,25 +409,34 @@ def getAPI(workingdir=None, silent=False):
             toAddress = addresses.addBMIfNotPresent(toAddress)
             fromAddress = addresses.addBMIfNotPresent(fromAddress)
             try:
-                fromAddressEnabled = bitmessagemain.shared.config.getboolean(
+                fromAddressEnabled = BMConfigParser().getboolean(
                     fromAddress, 'enabled')
             except:
                 return (fromAddress, 'fromAddressNotPresentError')
             if not fromAddressEnabled:
                 return (fromAddress, 'fromAddressDisabledError')
-            ackdata = openssl.OpenSSL.rand(32)
-            t = ('', toAddress, toRipe, fromAddress, subject, message, ackdata, int(
-                time.time()), 'msgqueued', 1, 1, 'sent', 2)
+
+            stealthLevel = BMConfigParser().safeGetInt('bitmessagesettings', 'ackstealthlevel')
+            ackdata = genAckPayload(streamNumber, stealthLevel)
+
+            TTL = 4 * 24 * 60 * 60
+            t = ('',
+                 toAddress,
+                 toRipe,
+                 fromAddress,
+                 subject,
+                 message,
+                 ackdata,
+                 int(time.time()),  # sentTime (this won't change)
+                 int(time.time()),  # lastActionTime
+                 0,
+                 'msgqueued',
+                 0,
+                 'sent',
+                 2,
+                 TTL)
             helper_sent.insert(t)
-            toLabel = ''
-            queryreturn = bitmessagemain.shared.sqlQuery(
-                '''select label from addressbook where address=?''', toAddress)
-            if queryreturn != []:
-                for row in queryreturn:
-                    toLabel, = row
-            bitmessagemain.shared.UISignalQueue.put(('displayNewSentMessage', (
-                toAddress, toLabel, fromAddress, subject, message, ackdata)))
-            bitmessagemain.shared.workerQueue.put(('sendmessage', toAddress))
+            queues.workerQueue.put(('sendmessage', toAddress))
             return ackdata.encode('hex')
 
         def trashInboxMessage(self, msgid):
@@ -472,5 +483,5 @@ def getAPI(workingdir=None, silent=False):
 
     api = MainAPI()
     api.start(daemon=True)
-    #time.sleep(5)
+    time.sleep(3)
     return api
