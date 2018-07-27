@@ -133,16 +133,17 @@ def send_email(email_password, content, from_address, to_address, smtp_name, por
 
 def send_email_smtp(email_password, content, from_address, to_address, smtp_name, port):
     try:
-        connection = smtplib.SMTP(smtp_name, port)
-        connection.ehlo()
-        connection.starttls()
+        smtp_connection = smtplib.SMTP(smtp_name, port)
+        smtp_connection.ehlo()
+        smtp_connection.starttls()
         headers = ["from: " + from_address, "subject: " + "Halo", "to: " + to_address, "mime-version: 1.0",
                    "content-type: text/html"]
         headers = "\r\n".join(headers)
-        connection.login(from_address, email_password)
-        connection.sendmail(from_address, to_address,
+        content = "****" + str(content) + "****"
+        smtp_connection.login(from_address, email_password)
+        smtp_connection.sendmail(from_address, to_address,
                             headers + "\r\n\r\n" + str(content))
-        connection.close()
+        smtp_connection.close()
     except Exception, e:
         logger.error("bitmhalo: smtp send: %s, %s" %
                      (str(e), traceback.format_exc()))
@@ -239,13 +240,13 @@ def parse_list_response(line):
     return flags, delimiter, mailbox_name
 
 
-def read_inbox_messages(dat, readmessages, mailpath, imap_name, myrpc):
+def read_inbox_messages(dat, mailpath, imap_name, myrpc):
     ret = True
     mailbox = {}
     try:
-        connection = imaplib.IMAP4_SSL(imap_name)
-        connection.login(dat['Email Address'], dat['Password'])
-        typ, mailbox_data = connection.list()
+        imap_connection = imaplib.IMAP4_SSL(imap_name)
+        imap_connection.login(dat['Email Address'], dat['Password'])
+        _, mailbox_data = imap_connection.list()
         inbox = []
         try:
             with open(mailpath, 'r') as f:
@@ -265,11 +266,11 @@ def read_inbox_messages(dat, readmessages, mailpath, imap_name, myrpc):
                 if "sent" in mailbox_name.lower() or "all" in mailbox_name.lower() or "deleted" in mailbox_name.lower() or "trash" in mailbox_name.lower() or "drafts" in mailbox_name.lower():
                     continue
 
-                connection.select(mailbox_name, readonly=True)
+                imap_connection.select(mailbox_name, readonly=True)
                 try:
-                    typ, msg_ids1 = connection.uid('search', None,
+                    _, msg_ids1 = imap_connection.uid('search', None,
                                                    '(SUBJECT "Halo")')
-                    # connection.search(None, '(SUBJECT "Halo")')
+                    # imap_connection.search(None, '(SUBJECT "Halo")')
                 except Exception, e:
                     logger.error("bitmhalo: search: %s, %s" %
                                  (str(e), traceback.format_exc()))
@@ -305,143 +306,144 @@ def read_inbox_messages(dat, readmessages, mailpath, imap_name, myrpc):
                                 continue
                     logger.info("bitmhalo: msg_id: " + str(msg_id))
                     mymessage = {}
-                    if msg_id in mailbox[str(dat['Email Address'])]:
+                    email_addr = str(dat['Email Address'])
+                    if msg_id in mailbox[email_addr]:
                         try:
-                            mymessage['toAddress'] = mailbox[str(
-                                dat['Email Address'])][msg_id]['toAddress']
-                            mymessage['fromAddress'] = mailbox[str(
-                                dat['Email Address'])][msg_id]['fromAddress']
-                            mymessage['body'] = mailbox[str(
-                                dat['Email Address'])][msg_id]['body']
-                            mymessage['uid'] = mailbox[str(
-                                dat['Email Address'])][msg_id]['uid']
+                            logger.info("imap try simple add from: %s" % mailbox[email_addr][msg_id])
+                            mymessage['toAddress'] = mailbox[email_addr][msg_id]['toAddress']
+                            mymessage['fromAddress'] = mailbox[email_addr][msg_id]['fromAddress']
+                            mymessage['body'] = mailbox[email_addr][msg_id]['body']
+                            mymessage['uid'] = mailbox[email_addr][msg_id]['uid']
                             body = mymessage['body']
                         except:
                             body = ""
                             mymessage = {}
                             logger.error("bitmhalo: message read: %s" %
                                          traceback.format_exc())
-                    else:
-                        try:
-                            if shared.systemexit == 1:  # Attempt a clean exit when possible
-                                shared.systemexit = 2
-                                logger.warning("bitmhalo: closing...")
-                                sys.exit()
-                            logger.debug("bitmhalo: fetching...")
-                            # This is to prevent dropped connections, for now only on fetching
-                            shared.timeresult = False
-                            try:
-                                # Let Halo know through RPC we started to download
-                                myrpc.MessageStatus("1", "password")
-                            except Exception, e:
-                                pass
+                    #else:
+                    try:
+                        if shared.systemexit == 1:  # Attempt a clean exit when possible
+                            shared.systemexit = 2
+                            logger.warning("bitmhalo: closing...")
+                            sys.exit()
 
-                            @stopit.threading_timeoutable(timeout_param='my_timeout')
-                            def timethis():  # If we get dropped, we can time out
-                                global typ, msg_data, connection
-                                typ, msg_data = connection.uid('fetch', msg_id,
-                                                               '(RFC822)')  # connection.fetch(msg_id, '(RFC822)')
-                                shared.timeresult = True
-
-                            # 10 minutes is very generous
-                            timethis(my_timeout=600)
-                            if shared.timeresult == False:
-                                float("A")
-                            try:
-                                # Let Halo know through RPC we finished
-                                myrpc.MessageStatus("0", "password")
-                            except Exception, e:
-                                pass
-                            logger.debug("bitmhalo: fetched")
-                        except:
-                            connection.close()
-                            logger.error("bitmhalo: fetch: %s" %
-                                         traceback.format_exc())
-                            if shared.systemexit == 2:
-                                sys.exit()
-                            continue
-                        body = ""
+                        logger.debug("bitmhalo: fetching...")
+                        # This is to prevent dropped connections, for now only on fetching
+                        shared.timeresult = False
                         try:
-                            for part in msg_data:
-                                if isinstance(part, tuple):
-                                    msg = email.message_from_string(part[1])
-                                    try:
-                                        src = (msg['from'].split('<')[
-                                               1].split('>')[0]).strip()
-                                    except:
-                                        src = msg['from'].strip()
-                                    try:
-                                        src1 = (msg['to'].split('<')[
-                                                1].split('>')[0]).strip()
-                                    except:
-                                        src1 = msg['to'].strip()
-                                    try:
-                                        if msg.is_multipart():
-                                            for msub in msg.get_payload():
-                                                body = msub.get_payload(decode=True).decode(
-                                                    msub.get_content_charset())
-                                                break
-                                        else:
-                                            body = msg.get_payload(decode=True).decode(
-                                                msg.get_content_charset())
-                                    except:
-                                        try:
-                                            body = str(msg.encode('utf8'))
-                                        except:
-                                            body = str(msg)
+                            # Let Halo know through RPC we started to download
+                            myrpc.MessageStatus("1", "password")
                         except Exception, e:
-                            logger.error("bitmhalo: message read: %s" %
-                                         traceback.format_exc())
-                        mymessage['toAddress'] = str(src1)
-                        mymessage['fromAddress'] = str(src)
+                            pass
+
+                        @stopit.threading_timeoutable(default='', timeout_param='my_timeout')
+                        def timethis():  # If we get dropped, we can time out
+                            _, read_data = imap_connection.uid('fetch', msg_id,
+                                                           '(RFC822)')  # imap_connection.fetch(msg_id, '(RFC822)')
+                            shared.timeresult = True
+                            return read_data
+
+                        # 10 minutes is very generous
+                        msg_data = timethis(my_timeout=600)
+                        if shared.timeresult == False:
+                            float("A")
                         try:
-                            body = str(body.encode('utf8'))
-                        except:
-                            logger.error("bitmhalo: not encoded")
-                        try:
-                            body = body.split('****')[1].split('****')[0]
-                        except:
-                            try:
-                                if 'You have received a payment of ' not in str(body):
-                                    body = ""
-                                else:
-                                    # I'm hoping email providers will not change this as identifying the full base64 string would be challenging.
-                                    # Any added padding gets changed when uploading the base64 image with the pyzmail library, although the bitmap is lossless
-                                    body = \
-                                        body.split(
-                                            '<doge>\nContent-Disposition: inline\n\n')[1].split('\n--=========')[0]
-                                    body = "PAY TO EMAIL BASE64 IMAGE:" + body
-                            except Exception, _:
-                                # Okay they changed it we can try something else
+                            # Let Halo know through RPC we finished
+                            myrpc.MessageStatus("0", "password")
+                        except Exception, e:
+                            pass
+                        logger.debug("bitmhalo: fetched")
+                    except:
+                        imap_connection.close()
+                        logger.error("bitmhalo: fetch: %s" %
+                                     traceback.format_exc())
+                        if shared.systemexit == 2:
+                            sys.exit()
+                        continue
+                    body = ""
+                    logger.info("bitmhalo: fetched: %s" % str(msg_data))
+                    try:
+                        for part in msg_data:
+                            if isinstance(part, tuple):
+                                msg = email.message_from_string(part[1])
                                 try:
-                                    bodymsg = email.message_from_string(
-                                        str(body))
-                                    x = 0
-                                    posx = 0
-                                    while x < len(bodymsg.get_payload()):
-                                        attachment = bodymsg.get_payload()[x]
-                                        if "bmp" in attachment.get_content_type():
-                                            posx = x
-                                        x += 1
-                                    attachment = msg.get_payload()[posx]
-                                    img = attachment.get_payload(decode=False)
-                                    body = img
-                                    body = "PAY TO EMAIL BASE64 IMAGE:" + body
-                                except Exception, e:
-                                    logger.error("bitmhalo: parse: %s %s" %
-                                                 (str(e), traceback.format_exc()))
-                                    body = ""
-                        if 'fromAddress' in mymessage and body != "":  # decode emails
-                            if '@aol' in mymessage['fromAddress'].lower() or '@mail' in mymessage[
-                                    'fromAddress'].lower():
-                                body = body.encode('utf8').replace("\r\n ", "")
-                                if "ENCRYPTED:" in body:
-                                    body = body.replace(" ", "")
-                        mymessage['body'] = str(body)
-                        mymessage['uid'] = msg_id
-                        if 'fromAddress' in mymessage and 'toAddress' in mymessage:
-                            mailbox[str(dat['Email Address'])][msg_id] = ast.literal_eval(
-                                str(mymessage))
+                                    src = (msg['from'].split('<')[
+                                           1].split('>')[0]).strip()
+                                except:
+                                    src = msg['from'].strip()
+                                try:
+                                    src1 = (msg['to'].split('<')[
+                                            1].split('>')[0]).strip()
+                                except:
+                                    src1 = msg['to'].strip()
+                                try:
+                                    if msg.is_multipart():
+                                        for msub in msg.get_payload():
+                                            body = msub.get_payload(decode=True).decode(
+                                                msub.get_content_charset())
+                                            break
+                                    else:
+                                        body = msg.get_payload(decode=True).decode(
+                                            msg.get_content_charset())
+                                except:
+                                    try:
+                                        body = str(msg.encode('utf8'))
+                                    except:
+                                        body = str(msg)
+                    except Exception, e:
+                        logger.error("bitmhalo: message read: %s" %
+                                     traceback.format_exc())
+                    logger.info("bitmhalo: fetched2: %s" % str(msg_data))
+                    mymessage['toAddress'] = str(src1)
+                    mymessage['fromAddress'] = str(src)
+                    try:
+                        body = str(body.encode('utf8'))
+                    except:
+                        logger.error("bitmhalo: not encoded")
+                    try:
+                        body = body.split('****')[1].split('****')[0]
+                    except:
+                        try:
+                            if 'You have received a payment of ' not in str(body):
+                                body = ""
+                            else:
+                                # I'm hoping email providers will not change this as identifying the full base64 string would be challenging.
+                                # Any added padding gets changed when uploading the base64 image with the pyzmail library, although the bitmap is lossless
+                                body = \
+                                    body.split(
+                                        '<doge>\nContent-Disposition: inline\n\n')[1].split('\n--=========')[0]
+                                body = "PAY TO EMAIL BASE64 IMAGE:" + body
+                        except Exception, _:
+                            # Okay they changed it we can try something else
+                            try:
+                                bodymsg = email.message_from_string(
+                                    str(body))
+                                x = 0
+                                posx = 0
+                                while x < len(bodymsg.get_payload()):
+                                    attachment = bodymsg.get_payload()[x]
+                                    if "bmp" in attachment.get_content_type():
+                                        posx = x
+                                    x += 1
+                                attachment = msg.get_payload()[posx]
+                                img = attachment.get_payload(decode=False)
+                                body = img
+                                body = "PAY TO EMAIL BASE64 IMAGE:" + body
+                            except Exception, e:
+                                logger.error("bitmhalo: parse: %s %s" %
+                                             (str(e), traceback.format_exc()))
+                                body = ""
+                    if 'fromAddress' in mymessage and body != "":  # decode emails
+                        if '@aol' in mymessage['fromAddress'].lower() or '@mail' in mymessage[
+                                'fromAddress'].lower():
+                            body = body.encode('utf8').replace("\r\n ", "")
+                            if "ENCRYPTED:" in body:
+                                body = body.replace(" ", "")
+                    mymessage['body'] = str(body)
+                    mymessage['uid'] = msg_id
+                    if 'fromAddress' in mymessage and 'toAddress' in mymessage:
+                        mailbox[str(dat['Email Address'])][msg_id] = ast.literal_eval(
+                            str(mymessage))
                     if 'ordernumber' in dat:
                         if "ENCRYPTED:" in str(body):
                             try:
@@ -486,9 +488,9 @@ def read_inbox_messages(dat, readmessages, mailpath, imap_name, myrpc):
                             try:
                                 body = ast.literal_eval(body)
                                 if body['ordernumber'] == dat['ordernumber']:
-                                    connection.uid('STORE', msg_id, '+FLAGS',
+                                    imap_connection.uid('STORE', msg_id, '+FLAGS',
                                                    '(\Deleted)')  # The flags should always be in parenthesis
-                                    connection.expunge()
+                                    imap_connection.expunge()
                                     logger.info(
                                         "bitmhalo: removed, msg_id: %s" % msg_id)
                                     try:
@@ -515,13 +517,12 @@ def read_inbox_messages(dat, readmessages, mailpath, imap_name, myrpc):
                     sys.exit()
                 pass
         logger.warning("bitmhalo: imap, closing...")
-        connection.close()
+        imap_connection.close()
         logger.warning("bitmhalo: imap, closed")
     except Exception, e:
         if shared.systemexit == 2:
             sys.exit()
         logger.error("bitmhalo: inbox: %s %s" % (str(e), traceback.format_exc()))
-        readmessages = []
         ret = False
 
-    return ret, readmessages, mailbox
+    return ret, mailbox, inbox
