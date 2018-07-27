@@ -433,7 +433,7 @@ class BMHaloApp(QCoreApplication):
         self.str_data_arg2 = "0"
         self.readInputTimerId = self.startTimer(234)
         self.doCommandsTimerId = self.startTimer(468)
-        self.doMessagesTimerId = self.startTimer(5148)
+        self.doMessagesTimerId = self.startTimer(28480)
         self.resendEmailsTimerId = self.startTimer(234000)
 
     def timerEvent(self, te):
@@ -568,7 +568,6 @@ class BMHaloApp(QCoreApplication):
 
                 for inmessage in inbox:
                     inbox_messages.append(inmessage)
-                    logger.info("imap adding: %s" % inmessage)
 
                 try:
                     status = shared.bm_api.clientStatus()
@@ -577,7 +576,7 @@ class BMHaloApp(QCoreApplication):
                                  traceback.format_exc())
                     status = ""
 
-                logger.info(str("bitmhalo: inbox checked"))
+                logger.info(str("bitmhalo: inbox checked, sending %d messages to Halo" % len(inbox_messages)))
                 try:
                     waitlock()
                     shared.lockTHIS = 1

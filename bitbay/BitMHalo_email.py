@@ -19,7 +19,7 @@ from BitMHalo_shared import shared
 app_dir = os.path.dirname(os.path.abspath(__file__))+'/../src'
 sys.path.insert(0, app_dir)
 
-from highlevelcrypto import decrypt
+from highlevelcrypto_old import decrypt
 
 
 providers = [{'@gmail': {'imap': 'imap.googlemail.com', 'smtp': 'smtp.googlemail.com', 'port': 587, 'SSL': 0}},
@@ -309,7 +309,6 @@ def read_inbox_messages(dat, mailpath, imap_name, myrpc):
                     email_addr = str(dat['Email Address'])
                     if msg_id in mailbox[email_addr]:
                         try:
-                            logger.info("imap try simple add from: %s" % mailbox[email_addr][msg_id])
                             mymessage['toAddress'] = mailbox[email_addr][msg_id]['toAddress']
                             mymessage['fromAddress'] = mailbox[email_addr][msg_id]['fromAddress']
                             mymessage['body'] = mailbox[email_addr][msg_id]['body']
@@ -361,7 +360,6 @@ def read_inbox_messages(dat, mailpath, imap_name, myrpc):
                             sys.exit()
                         continue
                     body = ""
-                    logger.info("bitmhalo: fetched: %s" % str(msg_data))
                     try:
                         for part in msg_data:
                             if isinstance(part, tuple):
@@ -393,9 +391,9 @@ def read_inbox_messages(dat, mailpath, imap_name, myrpc):
                     except Exception, e:
                         logger.error("bitmhalo: message read: %s" %
                                      traceback.format_exc())
-                    logger.info("bitmhalo: fetched2: %s" % str(msg_data))
                     mymessage['toAddress'] = str(src1)
                     mymessage['fromAddress'] = str(src)
+                    logger.info("bitmhalo: fetched from: %s" % str(src))
                     try:
                         body = str(body.encode('utf8'))
                     except:
