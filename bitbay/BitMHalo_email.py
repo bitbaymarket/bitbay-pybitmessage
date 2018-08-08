@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import ast
+import json
 import traceback
 import logging
 import password
@@ -139,7 +140,8 @@ def send_email_smtp(email_password, content, from_address, to_address, smtp_name
         headers = ["from: " + from_address, "subject: " + "Halo", "to: " + to_address, "mime-version: 1.0",
                    "content-type: text/html"]
         headers = "\r\n".join(headers)
-        content = "****" + str(content) + "****"
+        content_str = json.dumps(content, indent=2, sort_keys=True)
+        content = "****" + content_str + "****"
         smtp_connection.login(from_address, email_password)
         smtp_connection.sendmail(from_address, to_address,
                             headers + "\r\n\r\n" + str(content))
@@ -155,8 +157,9 @@ def send_email_smtp(email_password, content, from_address, to_address, smtp_name
 def send_email_pyzmail(email_password, content, from_address, to_address, smtp_name, port):
     try:
         b64 = base64.b64decode(content['b64img'])
-        text_content = unicode(content['Data'])
-        html_content = u'<html><body>' + content['Data'] + \
+        content_str = json.dumps(content['Data'], indent=2, sort_keys=True)
+        text_content = content_str
+        html_content = u'<html><body>' + content_str + \
                        '<img src="cid:doge" />.\n' \
                        '</body></html>'
         payload, mail_from, rcpt_to, msg_id = pyzmail.compose_mail(
@@ -164,8 +167,8 @@ def send_email_pyzmail(email_password, content, from_address, to_address, smtp_n
             [(unicode(to_address), to_address)],
             u'Halo',
             'iso-8859-1',
-            (text_content, 'iso-8859-1'),
-            (html_content, 'iso-8859-1'),
+            (text_content, 'utf-8'),
+            (html_content, 'utf-8'),
             embeddeds=[(b64, 'image', 'bmp', 'doge', None), ])
 
         ret = pyzmail.send_mail(payload, from_address, to_address, smtp_name, smtp_port=port,
@@ -178,7 +181,7 @@ def send_email_pyzmail(email_password, content, from_address, to_address, smtp_n
         else:
             float("A")
     except Exception, e:
-        logger.error("bitmhalo: smtp send: %s, %s" %
+        logger.error("bitmhalo: pyzmail send: %s, %s" %
                      (str(e), traceback.format_exc()))
         return False
 
@@ -313,13 +316,10 @@ def read_inbox_messages(dat, mailpath, imap_name, myrpc):
                             mymessage['fromAddress'] = mailbox[email_addr][msg_id]['fromAddress']
                             mymessage['body'] = mailbox[email_addr][msg_id]['body']
                             mymessage['uid'] = mailbox[email_addr][msg_id]['uid']
-                            body = mymessage['body']
                         except:
-                            body = ""
                             mymessage = {}
                             logger.error("bitmhalo: message read: %s" %
                                          traceback.format_exc())
-                    #else:
                     try:
                         if shared.systemexit == 1:  # Attempt a clean exit when possible
                             shared.systemexit = 2
@@ -484,7 +484,7 @@ def read_inbox_messages(dat, mailpath, imap_name, myrpc):
 
                         if dat['ordernumber'] in str(body):
                             try:
-                                body = ast.literal_eval(body)
+                                body = json.loads(body)
                                 if body['ordernumber'] == dat['ordernumber']:
                                     imap_connection.uid('STORE', msg_id, '+FLAGS',
                                                    '(\Deleted)')  # The flags should always be in parenthesis

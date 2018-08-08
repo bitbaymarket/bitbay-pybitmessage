@@ -18,6 +18,7 @@ import class_api as class_api
 #import parallelTestModule as parallelTestModule
 import time
 import ast
+import json
 import platform
 import appdirs
 import errno
@@ -258,7 +259,7 @@ def cmd_send(str_data, data3):
         if "ENCRYPTED:" in str_data:
             try:
                 match_obj = re.match(r'(MY:)(.*?)(THEIR:)(.*?)(ENCRYPTED:)(.*?)(###)', str_data, re.M | re.I)
-                content = match_obj.group(5) + match_obj.group(6)
+                content_str = match_obj.group(5) + match_obj.group(6)
                 from_address = match_obj.group(2)
                 to_address = match_obj.group(4)
             except:
@@ -266,6 +267,7 @@ def cmd_send(str_data, data3):
         else:
             try:
                 content = ast.literal_eval(str_data)
+                content_str = json.dumps(content, indent=2, sort_keys=True)
                 from_address = content['MyBMAddress']
                 to_address = content['TheirBMAddress']
             except:
@@ -273,7 +275,7 @@ def cmd_send(str_data, data3):
                 to_address = ""
                 content = "####"
 
-        logger.info("bitmhalo: about to send: %s" % str(content))
+        logger.info("bitmhalo: about to send: %s" % content_str)
         try:
             ret = shared.bm_api.sendMessage(from_address, to_address,
                                   "BitHalo", str(content))
@@ -568,6 +570,20 @@ class BMHaloApp(QCoreApplication):
 
                 for inmessage in inbox:
                     inbox_messages.append(inmessage)
+
+                for inbox_message in inbox_messages:
+                    if inbox_message.has_key('body'):
+                        try:
+                            from_json = json.loads(inbox_message['body'])
+                            inbox_message['body'] = str(from_json)
+                        except:
+                            pass
+                    if inbox_message.has_key('message'):
+                        try:
+                            from_json = json.loads(inbox_message['message'])
+                            inbox_message['message'] = str(from_json)
+                        except:
+                            pass
 
                 try:
                     status = shared.bm_api.clientStatus()
