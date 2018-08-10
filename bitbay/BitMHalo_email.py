@@ -55,7 +55,7 @@ providers = [{'@gmail': {'imap': 'imap.googlemail.com', 'smtp': 'smtp.googlemail
 content_chk1 = "You have received a payment of "
 content_chk2 = "If you are new to Cryptocurrency, somebody may have sent you these coins"
 
-logger = logging.getLogger('console')
+logger = logging.getLogger('both')
 
 
 def is_email_provider_supported(from_addr):
@@ -268,11 +268,11 @@ def parse_list_response(line):
 def read_inbox_messages(dat, mailpath, imap_name, myrpc):
     ret = True
     mailbox = {}
+    inbox = []
     try:
         imap_connection = imaplib.IMAP4_SSL(imap_name)
         imap_connection.login(dat['Email Address'], dat['Password'])
         _, mailbox_data = imap_connection.list()
-        inbox = []
         try:
             with open(mailpath, 'r') as f:
                 mailbox = f.readline()
