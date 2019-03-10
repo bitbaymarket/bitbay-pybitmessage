@@ -32,7 +32,7 @@ providers = [{'@gmail': {'imap': 'imap.googlemail.com', 'smtp': 'smtp.googlemail
 content_chk1 = "You have received a payment of "
 content_chk2 = "If you are new to Cryptocurrency, somebody may have sent you these coins"
 
-logger = logging.getLogger('console')
+logger = logging.getLogger('both')
 
 
 def is_email_provider_supported(from_addr):
