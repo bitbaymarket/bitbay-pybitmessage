@@ -243,11 +243,11 @@ def parse_list_response(line):
 def read_inbox_messages(dat, mailpath, imap_name, myrpc):
     ret = True
     mailbox = {}
+    inbox = []
     try:
         imap_connection = imaplib.IMAP4_SSL(imap_name)
         imap_connection.login(dat['Email Address'], dat['Password'])
         _, mailbox_data = imap_connection.list()
-        inbox = []
         try:
             with open(mailpath, 'r') as f:
                 mailbox = f.readline()
