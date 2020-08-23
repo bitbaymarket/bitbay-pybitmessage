@@ -27,7 +27,7 @@ install:
     python --version                                            &&
     which python                                                &&
     which pip                                                   &&
-    sudo pip install pyinstaller                                &&
+    sudo pip install pyinstaller==3.5                           &&
     sudo pip install pyzmail                                    &&
     sudo pip install stopit                                     &&
     sudo pip install password                                   &&
@@ -37,7 +37,7 @@ install:
   if [[ $ARCH == "linux64" ]]; then
     sudo apt-get install -y pyqt4-dev-tools                     &&
     python --version                                            &&
-    sudo pip install pyinstaller                                &&
+    sudo pip install pyinstaller==3.5                           &&
     sudo pip install pyzmail                                    &&
     sudo pip install stopit                                     &&
     sudo pip install password                                   &&
@@ -59,7 +59,7 @@ install:
     (brew install python@2 || brew link --overwrite python@2 || echo skip) &&
     export PATH="/usr/local/Cellar/python@2/2.7.15_1/bin:$PATH" &&
     python --version                                            &&
-    pip install pyinstaller                                     &&
+    pip install pyinstaller==3.5                                &&
     pip install pyzmail                                         &&
     pip install stopit                                          &&
     pip install password                                        &&
