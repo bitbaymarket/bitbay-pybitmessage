@@ -9,7 +9,7 @@ build_script:
   - set BITMHALOPATH=%cd%
   - ls
   - python --version
-  - pip install pyinstaller
+  - pip install pyinstaller==3.5
   - pip install pyzmail
   - pip install stopit
   - pip install password
