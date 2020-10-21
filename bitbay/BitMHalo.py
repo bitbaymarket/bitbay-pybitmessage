@@ -5,7 +5,7 @@ import os
 import re
 from logging import Logger
 
-app_dir = os.path.dirname(os.path.abspath(__file__))+'/../src'
+app_dir = os.path.dirname(os.path.abspath(__file__))+'/src'
 sys.path.insert(0, app_dir)
 
 import depends
@@ -30,6 +30,14 @@ import logging
 
 import BitMHalo_email as email_support
 from BitMHalo_shared import shared
+
+email_password = ''
+
+readmessages = []
+prevaccount = ""
+typ = ""
+msg_data = ""
+connection = ""
 
 #print txhash(open("blackhalo2.py", 'rb').read())
 #########################################
@@ -57,11 +65,7 @@ class RPCThread(QThread):  # threading.Thread
     class MyFuncs:
         def ExitBitmessage(self, passw):
             logger.warning(str("bitmhalo: Closing Bitmessage..."))
-            # if passw=='password'
-            try:
-                shared.bm_api.stop()
-            except:
-                traceback.print_exc()
+            #Bitmessage doesn't do clean exit, so do a safe BitMHalo exit instead.
             shared.systemexit = 1
             return True
 
@@ -433,8 +437,9 @@ class BMHaloApp(QCoreApplication):
         self.str_data_arg2 = "0"
         self.readInputTimerId = self.startTimer(234)
         self.doCommandsTimerId = self.startTimer(468)
-        self.doMessagesTimerId = self.startTimer(28480)
+        self.doMessagesTimerId = self.startTimer(5148)
         self.resendEmailsTimerId = self.startTimer(234000)
+        self.refreshMessagesTimerId = self.startTimer(234000)
 
     def timerEvent(self, te):
         try:
@@ -442,6 +447,9 @@ class BMHaloApp(QCoreApplication):
                 return
             if te.timerId()==self.resendEmailsTimerId:
                 email_support.resend_pending_in_outbox(shared.outbox_path)
+            elif te.timerId() == self.refreshMessagesTimerId:
+                global readmessages
+                readmessages = []
             elif te.timerId() == self.readInputTimerId:
                 self.read_input()
             elif te.timerId() == self.doCommandsTimerId:
@@ -520,7 +528,7 @@ class BMHaloApp(QCoreApplication):
             cmd = self.str_data_cmd
             logger.debug("do2: %s, %s, %s" % (str(cmd), str(self.str_data_arg1), str(self.str_data_arg2)))
             if cmd == "GetMessages" or cmd == "Remove Order":
-                logger.info("bitmhalo: checking Inbox... %s" % self.str_data_arg1)
+                logger.info("bitmhalo: checking Inbox...")
                 inbox = []
                 ret = ""
                 try:
@@ -537,8 +545,15 @@ class BMHaloApp(QCoreApplication):
                         verified, imap_name, smtp_name, port, is_ssl = email_support.is_email_provider_supported(
                             dat['Email Address'])
                         if verified:
-                            ret, mailbox, inbox = email_support.read_inbox_messages(
-                                dat, shared.mailcache_path, imap_name, shared.myrpc)
+                            global prevaccount, readmessages
+                            if dat['Email Address'] != prevaccount or cmd == "Remove Order":
+                                # reset on new accounts or maintenance
+                                # For now we maintain the record of read messages on the client side
+                                readmessages = []
+
+                            ret, readmessages, mailbox = email_support.read_inbox_messages(
+                                dat, readmessages, shared.mailcache_path, imap_name, shared.myrpc)
+                            prevaccount = dat['Email Address']
 
                             try:
                                 waitlock()
@@ -576,7 +591,7 @@ class BMHaloApp(QCoreApplication):
                                  traceback.format_exc())
                     status = ""
 
-                logger.info(str("bitmhalo: inbox checked, sending %d messages to Halo" % len(inbox_messages)))
+                logger.info(str("bitmhalo: inbox checked"))
                 try:
                     waitlock()
                     shared.lockTHIS = 1
