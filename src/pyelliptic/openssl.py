@@ -7,7 +7,6 @@
 #  Software slightly changed by Jonathan Warren <bitmessage at-symbol jonwarren.org>
 
 import sys
-import os
 import ctypes
 
 OpenSSL = None
@@ -495,20 +494,6 @@ class _OpenSSL:
             buffer = self.create_string_buffer(size)
         return buffer
 
-def getPythonFileLocation():
-    """  returns the location of where the python file is located. """
-    if os.path.dirname(sys.argv[0]) !="":
-        return os.path.dirname(sys.argv[0])
-    if os.path.dirname(__file__) != "":
-        return os.path.dirname(__file__)
-    elif os.path.dirname(os.path.abspath(__file__)) != "":
-        return os.path.dirname(os.path.abspath(__file__))
-    elif os.path.dirname(os.getcwd()) != "":
-        return os.path.dirname(os.getcwd())
-    else:
-        from inspect import getsourcefile
-        return os.path.dirname(os.path.abspath(getsourcefile(lambda _:None)))
-
 def loadOpenSSL():
     global OpenSSL
     from os import path, environ
@@ -516,10 +501,6 @@ def loadOpenSSL():
     
     libdir = []
     if getattr(sys,'frozen', None):
-        if hasattr(sys, "_MEIPASS"):
-            datadir = sys._MEIPASS
-        else:
-            datadir = getPythonFileLocation()
         if 'darwin' in sys.platform:
             libdir.extend([
                 path.join(environ['RESOURCEPATH'], '..', 'Frameworks','libcrypto.dylib'),
@@ -530,21 +511,21 @@ def loadOpenSSL():
                 path.join(environ['RESOURCEPATH'], '..', 'Frameworks','libcrypto.0.9.8.dylib'),
                 ])
         elif 'win32' in sys.platform or 'win64' in sys.platform:
-            libdir.append(path.join(datadir, 'libeay32.dll'))
+            libdir.append(path.join(sys._MEIPASS, 'libeay32.dll'))
         else:
             libdir.extend([
-                path.join(datadir, 'libcrypto.so'),
-                path.join(datadir, 'libssl.so'),
-                path.join(datadir, 'libcrypto.so.1.1.0'),
-                path.join(datadir, 'libssl.so.1.1.0'),
-                path.join(datadir, 'libcrypto.so.1.0.2'),
-                path.join(datadir, 'libssl.so.1.0.2'),
-                path.join(datadir, 'libcrypto.so.1.0.1'),
-                path.join(datadir, 'libssl.so.1.0.1'),
-                path.join(datadir, 'libcrypto.so.1.0.0'),
-                path.join(datadir, 'libssl.so.1.0.0'),
-                path.join(datadir, 'libcrypto.so.0.9.8'),
-                path.join(datadir, 'libssl.so.0.9.8'),
+                path.join(sys._MEIPASS, 'libcrypto.so'),
+                path.join(sys._MEIPASS, 'libssl.so'),
+                path.join(sys._MEIPASS, 'libcrypto.so.1.1.0'),
+                path.join(sys._MEIPASS, 'libssl.so.1.1.0'),
+                path.join(sys._MEIPASS, 'libcrypto.so.1.0.2'),
+                path.join(sys._MEIPASS, 'libssl.so.1.0.2'),
+                path.join(sys._MEIPASS, 'libcrypto.so.1.0.1'),
+                path.join(sys._MEIPASS, 'libssl.so.1.0.1'),
+                path.join(sys._MEIPASS, 'libcrypto.so.1.0.0'),
+                path.join(sys._MEIPASS, 'libssl.so.1.0.0'),
+                path.join(sys._MEIPASS, 'libcrypto.so.0.9.8'),
+                path.join(sys._MEIPASS, 'libssl.so.0.9.8'),
             ])
     if 'darwin' in sys.platform:
         libdir.extend(['libcrypto.dylib', '/usr/local/opt/openssl/lib/libcrypto.dylib'])
