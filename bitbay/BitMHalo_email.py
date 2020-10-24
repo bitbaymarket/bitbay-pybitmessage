@@ -375,14 +375,17 @@ def read_inbox_messages(dat, mailpath, imap_name, myrpc):
                                 except:
                                     src1 = msg['to'].strip()
                                 try:
+                                    charset='utf8'
                                     if msg.is_multipart():
                                         for msub in msg.get_payload():
-                                            body = msub.get_payload(decode=True).decode(
-                                                msub.get_content_charset())
+                                            if msub.get_content_charset() != None:
+                                                charset = msub.get_content_charset()
+                                            body = msub.get_payload(decode = True).decode(msub.get_content_charset())
                                             break
-                                    else:
-                                        body = msg.get_payload(decode=True).decode(
-                                            msg.get_content_charset())
+                                    else:                                    
+                                        if msg.get_content_charset() != None:
+                                            charset = msg.get_content_charset()
+                                        body = msg.get_payload(decode = True).decode(charset)
                                 except:
                                     try:
                                         body = str(msg.encode('utf8'))
